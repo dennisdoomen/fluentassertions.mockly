@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\\Mockly.Specs\\AssertionSpecs.cs" Link="AssertionSpecs.cs" />
+    <Compile Include="..\\Specs\\AssertionSpecs.cs" Link="AssertionSpecs.cs" />
   </ItemGroup>
 
 </Project>

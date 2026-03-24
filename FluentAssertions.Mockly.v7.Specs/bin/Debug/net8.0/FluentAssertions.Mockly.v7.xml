@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>FluentAssertions.Mockly.v7</name>
+    </assembly>
+    <members>
+        <member name="T:Mockly.HttpMockAssertionExtensions">
+            <summary>
+            FluentAssertions extensions for HttpMock.
+            </summary>
+        </member>
+        <member name="M:Mockly.HttpMockAssertionExtensions.Should(Mockly.HttpMock)">
+            <summary>
+            Returns an assertion object for the HttpMock.
+            </summary>
+        </member>
+        <member name="M:Mockly.HttpMockAssertionExtensions.Should(Mockly.RequestCollection)">
+            <summary>
+            Returns an assertion object for the RequestCollection.
+            </summary>
+        </member>
+        <member name="M:Mockly.HttpMockAssertionExtensions.Should(Mockly.CapturedRequest)">
+            <summary>
+            Returns an assertion object for the CapturedRequest.
+            </summary>
+        </member>
+        <member name="T:Mockly.HttpMockAssertions">
+            <summary>
+            Assertions for HttpMock.
+            </summary>
+        </member>
+        <member name="M:Mockly.HttpMockAssertions.#ctor(Mockly.HttpMock)">
+            <summary>
+            Assertions for HttpMock.
+            </summary>
+        </member>
+        <member name="M:Mockly.HttpMockAssertions.HaveAllRequestsCalled(System.String,System.Object[])">
+            <summary>
+            Asserts that all configured request mocks have been invoked.
+            </summary>
+        </member>
+        <member name="T:Mockly.RequestCollectionAssertions">
+            <summary>
+            Assertions for RequestCollection.
+            </summary>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.NotContainUnexpectedCalls(System.String,System.Object[])">
+            <summary>
+            Asserts that the request collection does not contain any unexpected requests.
+            </summary>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.ContainRequest(System.String,System.Object[])">
+            <summary>
+            Asserts that the collection contains at least one request and returns assertions for that request.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.ContainRequestFor(System.Uri,System.String,System.Object[])">
+            <summary>
+            Asserts that the collection contains a request for the given URI and returns assertions for that request.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.ContainRequestFor(System.String,System.String,System.Object[])">
+            <summary>
+            Asserts that the collection contains a request for the given URL pattern and returns assertions for that request.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.NotContainRequestFor(System.Uri,System.String,System.Object[])">
+            <summary>
+            Asserts that the collection does not contain a request matching the given URI.
+            </summary>
+        </member>
+        <member name="M:Mockly.RequestCollectionAssertions.NotContainRequestFor(System.String,System.String,System.Object[])">
+            <summary>
+            Asserts that the collection does not contain a request matching the given URL pattern.
+            </summary>
+        </member>
+        <member name="T:Mockly.CapturedRequestAssertions">
+            <summary>
+            Assertions for CapturedRequest.
+            </summary>
+        </member>
+        <member name="M:Mockly.CapturedRequestAssertions.BeExpected(System.String,System.Object[])">
+            <summary>
+            Asserts that the request was expected (matched a mock).
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.CapturedRequestAssertions.BeUnexpected(System.String,System.Object[])">
+            <summary>
+            Asserts that the request was unexpected (did not match any mock).
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="T:Mockly.ContainedRequestAssertions">
+            <summary>
+            Assertion chain for a specific captured request located from a RequestCollection.
+            </summary>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBody(System.String,System.String,System.Object[])">
+            <summary>
+            Asserts that the body of at least one of the matching requests matches a wildcard pattern.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+            <returns>
+            A construct that allows chaining more assertions on the matching <see cref="T:Mockly.CapturedRequest"/>
+            </returns>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBodyMatchingJson(System.String,System.String,System.Object[])">
+            <summary>
+            Asserts that at least one of the matching requests has a body matching the provided JSON, ignoring whitespace/layout differences.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+            <returns>
+            A construct that allows chaining more assertions on the matching <see cref="T:Mockly.CapturedRequest"/>
+            </returns>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBodyEquivalentTo``1(``0,System.String,System.Object[])">
+            <summary>
+            Deserializes the JSON request body to a particular type and asserts it is equivalent to the expected value.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBodyHavingPropertiesOf(System.Collections.Generic.IDictionary{System.String,System.String},System.String,System.Object[])">
+            <summary>
+            Deserializes the request body as a dictionary and asserts that it contains at least the properties of the
+            expected dictionary with matching values. Additional properties in the request body are ignored.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBodyHavingPropertiesEqualTo(System.Collections.Generic.IDictionary{System.String,System.String},System.String,System.Object[])">
+            <summary>
+            Deserializes the request body as a dictionary and asserts it is exactly equivalent to the expected dictionary,
+            without any additional properties.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+        <member name="M:Mockly.ContainedRequestAssertions.WithBodyHavingProperty(System.String,System.String,System.String,System.Object[])">
+            <summary>
+            Asserts the body contains a top-level property with the given key and value.
+            </summary>
+            <param name="because">
+            A formatted phrase as is supported by <see cref="M:System.String.Format(System.String,System.Object[])" /> explaining why the assertion
+            is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+            </param>
+            <param name="becauseArgs">
+            Zero or more objects to format using the placeholders in <paramref name="because" />.
+            </param>
+        </member>
+    </members>
+</doc>
