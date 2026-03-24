@@ -45,6 +45,7 @@
   <ItemGroup Label="Dependencies">
     <PackageReference Include="FluentAssertions" Version="[7.1.0, 8.0.0)" />
     <PackageReference Include="Mockly" Version="[1.4.0,2.0.0)" />
+  <PackageReference Include="System.Text.Json" Version="10.0.5" />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
