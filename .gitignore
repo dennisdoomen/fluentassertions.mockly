@@ -1,0 +1,20 @@
+## Build outputs
+**/bin/
+**/obj/
+
+## Test & build artifacts
+Artifacts/
+TestResults/
+*.nupkg
+*.snupkg
+
+## IDE / tooling
+.vs/
+*.user
+*.suo
+*.rsuser
+_ReSharper.Caches/
+
+## OS
+.DS_Store
+Thumbs.db

@@ -254,7 +254,7 @@ class Build : NukeBuild
 
     Target Push => _ => _
         .DependsOn(Pack)
-        .OnlyWhenDynamic(() => IsTag)
+        .OnlyWhenDynamic(() => IsTag && !string.IsNullOrWhiteSpace(NugetArtifactsApiKey))
         .ProceedAfterFailure()
         .Executes(() =>
         {
