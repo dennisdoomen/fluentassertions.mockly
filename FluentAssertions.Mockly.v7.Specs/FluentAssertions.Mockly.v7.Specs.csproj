@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="7.1.0" />
+    <PackageReference Include="FluentAssertions" Version="7.2.2" />
     <PackageReference Include="Mockly" Version="[1.4.0,2.0.0)" />
     <PackageReference Include="System.Net.Http" Version="4.3.4"/>
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1"/>
