@@ -43,8 +43,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Dependencies">
-    <PackageReference Include="FluentAssertions" Version="[7.1.0, 8.0.0)" />
-    <PackageReference Include="Mockly" Version="[1.4.0,2.0.0)" />
+    <PackageReference Include="FluentAssertions" Version="[7.2.2, 8.0.0)" />
+    <PackageReference Include="Mockly" Version="[1.4.1, 2.0.0)" />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
