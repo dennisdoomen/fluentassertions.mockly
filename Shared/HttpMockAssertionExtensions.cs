@@ -67,7 +67,7 @@ public class HttpMockAssertions(HttpMock subject) :
     /// </summary>
     public AndConstraint<HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs)
     {
-        var uninvokedCount = subject.GetUninvokedMocks().Count();
+        var uninvokedMocks = subject.GetUninvokedMocks().ToList();
 
 #if FA8
         AssertionChain.GetOrCreate()
@@ -76,7 +76,11 @@ public class HttpMockAssertions(HttpMock subject) :
 #endif
             .BecauseOf(because, becauseArgs)
             .ForCondition(subject.AllMocksInvoked)
-            .FailWith("all request mocks should have been called, but {0} mock(s) were not invoked", uninvokedCount);
+            .FailWith(
+                "all request mocks should have been called, but {0} mock(s) were not invoked:{1}{2}",
+                uninvokedMocks.Count,
+                Environment.NewLine,
+                string.Join(Environment.NewLine, uninvokedMocks.Select(m => $"  {m}")));
 
         return new AndConstraint<HttpMockAssertions>(this);
     }

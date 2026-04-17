@@ -52,7 +52,9 @@ public class AssertionSpecs
             var act = () => mock.Should().HaveAllRequestsCalled();
 
             // Assert
-            act.Should().Throw<XunitException>().WithMessage("*but 1 mock(s) were not invoked*");
+            act.Should().Throw<XunitException>()
+                .WithMessage("*but 1 mock(s) were not invoked*")
+                .And.Message.Should().Contain("GET https://localhost/api/test2");
         }
     }
 
