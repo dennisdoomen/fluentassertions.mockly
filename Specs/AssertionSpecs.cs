@@ -54,6 +54,29 @@ public class AssertionSpecs
             // Assert
             act.Should().Throw<XunitException>().WithMessage("*but 1 mock(s) were not invoked*");
         }
+
+        [Fact]
+        public async Task Failure_message_does_not_list_which_mocks_were_not_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/orders").RespondsWithStatus(HttpStatusCode.Created);
+
+            var client = mock.GetClient();
+            await client.GetAsync("https://localhost/api/users");
+
+            // Act
+            var act = () => mock.Should().HaveAllRequestsCalled();
+
+            // Assert - The current failure message only reports the count of uninvoked mocks,
+            // not which specific mocks (e.g., "POST /api/orders") were never invoked.
+            string message = act.Should().Throw<XunitException>().Which.Message;
+            message.Should().Contain("1 mock(s) were not invoked");
+            message.Should().NotContain("POST");
+            message.Should().NotContain("/api/orders");
+        }
     }
 
     public class RequestCollectionSpecs
