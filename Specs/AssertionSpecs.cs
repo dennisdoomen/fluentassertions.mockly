@@ -52,7 +52,7 @@ public class AssertionSpecs
             var act = () => mock.Should().HaveAllRequestsCalled();
 
             // Assert
-            act.Should().Throw<XunitException>().WithMessage("*but the following 1 mock(s) were not invoked*");
+            act.Should().Throw<XunitException>().WithMessage("*but the following mock was not invoked*");
         }
 
         [Fact]
@@ -72,7 +72,7 @@ public class AssertionSpecs
 
             // Assert - The failure message lists each uninvoked mock by HTTP method and path.
             string message = act.Should().Throw<XunitException>().Which.Message;
-            message.Should().Contain("the following 1 mock(s) were not invoked");
+            message.Should().Contain("the following mock was not invoked");
             message.Should().Contain("POST");
             message.Should().Contain("/api/orders");
         }

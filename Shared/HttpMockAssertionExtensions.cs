@@ -67,13 +67,15 @@ public class HttpMockAssertions(HttpMock subject) :
     /// </summary>
     public AndConstraint<HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs)
     {
-        var uninvoked = subject.GetUninvokedMocks().ToList();
+        List<RequestMock> uninvoked = subject.GetUninvokedMocks().ToList();
 
-        var failureMessage = new StringBuilder("all request mocks should have been called, but the following ")
-            .Append(uninvoked.Count)
-            .Append(" mock(s) were not invoked:");
+        var failureMessage = uninvoked.Count == 1
+            ? new StringBuilder("all request mocks should have been called, but the following mock was not invoked:")
+            : new StringBuilder("all request mocks should have been called, but the following ")
+                .Append(uninvoked.Count)
+                .Append(" mocks were not invoked:");
 
-        foreach (var mock in uninvoked)
+        foreach (RequestMock mock in uninvoked)
         {
             failureMessage.Append("\n  - ").Append(mock.Method).Append(' ').Append(
                 string.IsNullOrEmpty(mock.PathPattern) ? "(any path)" : mock.PathPattern);
