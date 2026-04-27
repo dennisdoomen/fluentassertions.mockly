@@ -67,7 +67,19 @@ public class HttpMockAssertions(HttpMock subject) :
     /// </summary>
     public AndConstraint<HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs)
     {
-        var uninvokedCount = subject.GetUninvokedMocks().Count();
+        List<RequestMock> uninvoked = subject.GetUninvokedMocks().ToList();
+
+        var failureMessage = uninvoked.Count == 1
+            ? new StringBuilder("all request mocks should have been called, but the following mock was not invoked:")
+            : new StringBuilder("all request mocks should have been called, but the following ")
+                .Append(uninvoked.Count)
+                .Append(" mocks were not invoked:");
+
+        foreach (RequestMock mock in uninvoked)
+        {
+            failureMessage.Append("\n  - ").Append(mock.Method).Append(' ').Append(
+                string.IsNullOrEmpty(mock.PathPattern) ? "(any path)" : mock.PathPattern);
+        }
 
 #if FA8
         AssertionChain.GetOrCreate()
@@ -76,7 +88,7 @@ public class HttpMockAssertions(HttpMock subject) :
 #endif
             .BecauseOf(because, becauseArgs)
             .ForCondition(subject.AllMocksInvoked)
-            .FailWith("all request mocks should have been called, but {0} mock(s) were not invoked", uninvokedCount);
+            .FailWith(failureMessage.ToString());
 
         return new AndConstraint<HttpMockAssertions>(this);
     }

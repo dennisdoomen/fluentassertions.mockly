@@ -52,7 +52,29 @@ public class AssertionSpecs
             var act = () => mock.Should().HaveAllRequestsCalled();
 
             // Assert
-            act.Should().Throw<XunitException>().WithMessage("*but 1 mock(s) were not invoked*");
+            act.Should().Throw<XunitException>().WithMessage("*but the following mock was not invoked*");
+        }
+
+        [Fact]
+        public async Task Failure_message_lists_which_mocks_were_not_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/orders").RespondsWithStatus(HttpStatusCode.Created);
+
+            var client = mock.GetClient();
+            await client.GetAsync("https://localhost/api/users");
+
+            // Act
+            var act = () => mock.Should().HaveAllRequestsCalled();
+
+            // Assert - The failure message lists each uninvoked mock by HTTP method and path.
+            string message = act.Should().Throw<XunitException>().Which.Message;
+            message.Should().Contain("the following mock was not invoked");
+            message.Should().Contain("POST");
+            message.Should().Contain("/api/orders");
         }
     }
 
