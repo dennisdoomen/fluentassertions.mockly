@@ -116,6 +116,32 @@ public class HttpMockAssertions(HttpMock subject) :
     /// </remarks>
     public AndConstraint<HttpMockAssertions> HaveCalledInOrder(params RequestMockResponseBuilder[] expectedOrder)
     {
+        return HaveCalledInOrder(expectedOrder, string.Empty);
+    }
+
+    /// <summary>
+    /// Asserts that the mocks were invoked in the specified order, based on the first observed invocation of each mock.
+    /// </summary>
+    /// <param name="expectedOrder">
+    /// The mocks in the order they are expected to have been invoked. The assertion verifies that the first observed
+    /// request for each successive mock occurred after the first observed request for the preceding mock.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <remarks>
+    /// Order is determined by <see cref="CapturedRequest.Sequence"/>, which reflects capture order.
+    /// When requests are made concurrently, the captured order may be nondeterministic.
+    /// </remarks>
+    public AndConstraint<HttpMockAssertions> HaveCalledInOrder(
+        RequestMockResponseBuilder[] expectedOrder,
+        string because = "",
+        params object[] becauseArgs)
+    {
         if (expectedOrder is null || expectedOrder.Length == 0)
         {
             throw new ArgumentException("At least one mock must be provided to assert call order.", nameof(expectedOrder));
@@ -136,18 +162,14 @@ public class HttpMockAssertions(HttpMock subject) :
             .ToArray();
 
         bool succeeded = true;
-        var failureMessage = new StringBuilder();
+        string? failureReason = null;
 
         for (int i = 0; i < firstOccurrences.Length; i++)
         {
             if (firstOccurrences[i].request is null)
             {
                 succeeded = false;
-                failureMessage.Append("Expected mocks to have been called in order, but mock #")
-                    .Append(i + 1)
-                    .Append(" (")
-                    .Append(DescribeMock(firstOccurrences[i].mock))
-                    .Append(") was never invoked.");
+                failureReason = $"mock #{i + 1} ({DescribeMock(firstOccurrences[i].mock)}) was never invoked.";
                 break;
             }
         }
@@ -159,35 +181,28 @@ public class HttpMockAssertions(HttpMock subject) :
                 if (firstOccurrences[i].request!.Sequence <= firstOccurrences[i - 1].request!.Sequence)
                 {
                     succeeded = false;
-                    failureMessage.Append("Expected mocks to have been called in order, but ")
-                        .Append(DescribeMock(firstOccurrences[i].mock))
-                        .Append(" (first called at request #")
-                        .Append(firstOccurrences[i].request!.Sequence)
-                        .Append(") was not called after ")
-                        .Append(DescribeMock(firstOccurrences[i - 1].mock))
-                        .Append(" (first called at request #")
-                        .Append(firstOccurrences[i - 1].request!.Sequence)
-                        .Append(").");
+                    failureReason = $"{DescribeMock(firstOccurrences[i].mock)} (first called at request #{firstOccurrences[i].request!.Sequence})" +
+                        $" was not called after {DescribeMock(firstOccurrences[i - 1].mock)} (first called at request #{firstOccurrences[i - 1].request!.Sequence}).";
                     break;
                 }
             }
         }
 
-        if (!succeeded)
-        {
-            failureMessage.Append(Environment.NewLine)
-                .Append("Actual captured requests:")
-                .Append(Environment.NewLine)
-                .Append(DescribeCapturedRequests(capturedRequests));
-        }
+        string capturedInfo = succeeded
+            ? string.Empty
+            : "Actual captured requests:" + Environment.NewLine + DescribeCapturedRequests(capturedRequests);
 
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
+            .BecauseOf(because, becauseArgs)
             .ForCondition(succeeded)
-            .FailWith(failureMessage.ToString());
+            .FailWith(
+                "Expected mocks to have been called in order{reason}, but {0}" + Environment.NewLine + "{1}",
+                failureReason,
+                capturedInfo);
 
         return new AndConstraint<HttpMockAssertions>(this);
     }
@@ -1539,6 +1554,45 @@ public class RequestMockResponseBuilderAssertions(RequestMockResponseBuilder sub
                 "Expected mock {0} {1} to not have been called{because}, but it was called {2} time(s).",
                 subject.RequestMock.Method,
                 string.IsNullOrEmpty(subject.RequestMock.PathPattern) ? "(any path)" : subject.RequestMock.PathPattern,
+                count);
+
+        return new AndConstraint<RequestMockResponseBuilderAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that this mock has been invoked exactly <paramref name="expected"/> times.
+    /// </summary>
+    /// <param name="expected">The exact number of expected invocations. Must be zero or greater.</param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestMockResponseBuilderAssertions> HaveBeenCalledTimes(int expected, string because = "",
+        params object[] becauseArgs)
+    {
+        if (expected < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expected), expected,
+                "The expected number of invocations cannot be negative.");
+        }
+
+        int count = subject.RequestMock.InvocationCount;
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(count == expected)
+            .FailWith(
+                "Expected mock {0} {1} to have been called exactly {2} time(s){because}, but it was invoked {3} time(s).",
+                subject.RequestMock.Method,
+                string.IsNullOrEmpty(subject.RequestMock.PathPattern) ? "(any path)" : subject.RequestMock.PathPattern,
+                expected,
                 count);
 
         return new AndConstraint<RequestMockResponseBuilderAssertions>(this);
