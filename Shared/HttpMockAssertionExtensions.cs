@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
@@ -751,6 +752,204 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         }
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Asserts that at least one of the matching requests has a query parameter with the specified name (any value).
+    /// </summary>
+    /// <remarks>
+    /// To avoid C# overload-resolution ambiguity with the value-pattern overload, this overload intentionally omits
+    /// <c>because</c> / <c>becauseArgs</c> parameters. Use
+    /// <see cref="WithQueryParam(string, string, string, object[])"/> with <c>valuePattern: "*"</c> if you need a
+    /// failure reason.
+    /// </remarks>
+    /// <param name="name">The name of the query parameter to look for.</param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithQueryParam(string name)
+    {
+        foreach (CapturedRequest request in requests)
+        {
+            if (ParseUrlEncodedPairs(request.Query).Any(p => p.Name == name))
+            {
+                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .FailWith(
+                    "Expected request to have a query parameter named {0}, but the query string was: {1}",
+                    name, requests[0].Query ?? "(empty)");
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .FailWith(
+                    "Expected at least one request to have a query parameter named {0}, but none did", name);
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Asserts that at least one of the matching requests has a query parameter with the specified name and a value
+    /// matching a wildcard pattern.
+    /// </summary>
+    /// <param name="name">The name of the query parameter to look for.</param>
+    /// <param name="valuePattern">A wildcard pattern the parameter value must match. Use <c>*</c> as a wildcard.</param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithQueryParam(
+        string name, string valuePattern, string because = "", params object[] becauseArgs)
+    {
+        foreach (CapturedRequest request in requests)
+        {
+            foreach (var (paramName, paramValue) in ParseUrlEncodedPairs(request.Query))
+            {
+                if (paramName == name && paramValue.MatchesWildcard(valuePattern))
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected request to have a query parameter {0} matching wildcard {1}{because}, but the query string was: {2}",
+                    name, valuePattern, requests[0].Query ?? "(empty)");
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected at least one request to have a query parameter {0} matching wildcard {1}{because}, but none did",
+                    name, valuePattern);
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Asserts that at least one of the matching requests has a URL-encoded form field with the specified name and a
+    /// value matching a wildcard pattern.
+    /// </summary>
+    /// <param name="name">The name of the form field to look for.</param>
+    /// <param name="valuePattern">A wildcard pattern the field value must match. Use <c>*</c> as a wildcard.</param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithFormField(
+        string name, string valuePattern, string because = "", params object[] becauseArgs)
+    {
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Body is null)
+            {
+                continue;
+            }
+
+            foreach (var (fieldName, fieldValue) in ParseUrlEncodedPairs(request.Body))
+            {
+                if (fieldName == name && fieldValue.MatchesWildcard(valuePattern))
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected request to have a form field {0} matching wildcard {1}{because}, but the body was: {2}",
+                    name, valuePattern, requests[0].Body ?? "<null>");
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected at least one request to have a form field {0} matching wildcard {1}{because}, but none did",
+                    name, valuePattern);
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    private static IEnumerable<(string Name, string Value)> ParseUrlEncodedPairs(string? rawQuery)
+    {
+        if (string.IsNullOrEmpty(rawQuery))
+        {
+            yield break;
+        }
+
+        string query = rawQuery!.TrimStart('?');
+
+        foreach (string pair in query.Split('&'))
+        {
+            if (string.IsNullOrEmpty(pair))
+            {
+                continue;
+            }
+
+            int idx = pair.IndexOf("=", StringComparison.Ordinal);
+
+            if (idx < 0)
+            {
+                yield return (WebUtility.UrlDecode(pair), string.Empty);
+            }
+            else
+            {
+                yield return (WebUtility.UrlDecode(pair[..idx]), WebUtility.UrlDecode(pair[(idx + 1)..]));
+            }
+        }
     }
 
     protected override string Identifier

@@ -1,4 +1,4 @@
-[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
 namespace Mockly
 {
     public class CapturedRequestAssertions : FluentAssertions.Primitives.ObjectAssertions<Mockly.CapturedRequest, Mockly.CapturedRequestAssertions>
@@ -17,6 +17,9 @@ namespace Mockly
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyHavingPropertiesOf(System.Collections.Generic.IDictionary<string, string> expectation, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyHavingProperty(string key, string value, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithFormField(string name, string valuePattern, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithQueryParam(string name) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithQueryParam(string name, string valuePattern, string because = "", params object[] becauseArgs) { }
     }
     public static class HttpMockAssertionExtensions
     {
