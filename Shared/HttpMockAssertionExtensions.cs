@@ -47,6 +47,14 @@ public static class HttpMockAssertionExtensions
     {
         return new CapturedRequestAssertions(request);
     }
+
+    /// <summary>
+    /// Returns an assertion object for the RequestMockResponseBuilder, enabling per-mock invocation assertions.
+    /// </summary>
+    public static RequestMockResponseBuilderAssertions Should(this RequestMockResponseBuilder builder)
+    {
+        return new RequestMockResponseBuilderAssertions(builder);
+    }
 }
 
 /// <summary>
@@ -92,6 +100,109 @@ public class HttpMockAssertions(HttpMock subject) :
             .FailWith(failureMessage.ToString());
 
         return new AndConstraint<HttpMockAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that the mocks were invoked in the specified order, based on the first observed invocation of each mock.
+    /// </summary>
+    /// <param name="expectedOrder">
+    /// The mocks in the order they are expected to have been invoked. The assertion verifies that the first observed
+    /// request for each successive mock occurred after the first observed request for the preceding mock.
+    /// </param>
+    /// <remarks>
+    /// Order is determined by <see cref="CapturedRequest.Sequence"/>, which reflects capture order.
+    /// When requests are made concurrently, the captured order may be nondeterministic.
+    /// </remarks>
+    public AndConstraint<HttpMockAssertions> HaveCalledInOrder(params RequestMockResponseBuilder[] expectedOrder)
+    {
+        if (expectedOrder is null || expectedOrder.Length == 0)
+        {
+            throw new ArgumentException("At least one mock must be provided to assert call order.", nameof(expectedOrder));
+        }
+
+        for (int i = 0; i < expectedOrder.Length; i++)
+        {
+            if (expectedOrder[i] is null)
+            {
+                throw new ArgumentException($"The expected order contains a null element at index {i}.", nameof(expectedOrder));
+            }
+        }
+
+        var capturedRequests = subject.Requests.ToList();
+
+        var firstOccurrences = expectedOrder
+            .Select(b => (mock: b.RequestMock, request: capturedRequests.FirstOrDefault(r => ReferenceEquals(r.Mock, b.RequestMock))))
+            .ToArray();
+
+        bool succeeded = true;
+        var failureMessage = new StringBuilder();
+
+        for (int i = 0; i < firstOccurrences.Length; i++)
+        {
+            if (firstOccurrences[i].request is null)
+            {
+                succeeded = false;
+                failureMessage.Append("Expected mocks to have been called in order, but mock #")
+                    .Append(i + 1)
+                    .Append(" (")
+                    .Append(DescribeMock(firstOccurrences[i].mock))
+                    .Append(") was never invoked.");
+                break;
+            }
+        }
+
+        if (succeeded)
+        {
+            for (int i = 1; i < firstOccurrences.Length; i++)
+            {
+                if (firstOccurrences[i].request!.Sequence <= firstOccurrences[i - 1].request!.Sequence)
+                {
+                    succeeded = false;
+                    failureMessage.Append("Expected mocks to have been called in order, but ")
+                        .Append(DescribeMock(firstOccurrences[i].mock))
+                        .Append(" (first called at request #")
+                        .Append(firstOccurrences[i].request!.Sequence)
+                        .Append(") was not called after ")
+                        .Append(DescribeMock(firstOccurrences[i - 1].mock))
+                        .Append(" (first called at request #")
+                        .Append(firstOccurrences[i - 1].request!.Sequence)
+                        .Append(").");
+                    break;
+                }
+            }
+        }
+
+        if (!succeeded)
+        {
+            failureMessage.Append(Environment.NewLine)
+                .Append("Actual captured requests:")
+                .Append(Environment.NewLine)
+                .Append(DescribeCapturedRequests(capturedRequests));
+        }
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .ForCondition(succeeded)
+            .FailWith(failureMessage.ToString());
+
+        return new AndConstraint<HttpMockAssertions>(this);
+    }
+
+    private static string DescribeMock(RequestMock mock)
+        => $"{mock.Method} {(string.IsNullOrEmpty(mock.PathPattern) ? "(any path)" : mock.PathPattern)}";
+
+    private static string DescribeCapturedRequests(IEnumerable<CapturedRequest> requests)
+    {
+        var builder = new StringBuilder();
+        foreach (CapturedRequest r in requests)
+        {
+            builder.Append("  #").Append(r.Sequence).Append(": ").AppendLine(r.ToString());
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     protected override string Identifier => "HTTP mock";
@@ -956,4 +1067,121 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     {
         get => "captured request";
     }
+}
+
+/// <summary>
+/// Assertions for <see cref="RequestMockResponseBuilder"/>, enabling per-mock invocation count assertions.
+/// </summary>
+[SuppressMessage("Design", "MA0048:File name must match type name",
+    Justification = "Multiple assertion classes in one file for convenience")]
+public class RequestMockResponseBuilderAssertions(RequestMockResponseBuilder subject) :
+#if FA8
+    ReferenceTypeAssertions<RequestMockResponseBuilder, RequestMockResponseBuilderAssertions>(subject, AssertionChain.GetOrCreate())
+#else
+    ReferenceTypeAssertions<RequestMockResponseBuilder, RequestMockResponseBuilderAssertions>(subject)
+#endif
+{
+    private readonly RequestMockResponseBuilder subject = subject;
+
+    /// <summary>
+    /// Asserts that this mock has been invoked at least once.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestMockResponseBuilderAssertions> HaveBeenCalled(string because = "",
+        params object[] becauseArgs)
+    {
+        int count = subject.RequestMock.InvocationCount;
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(count >= 1)
+            .FailWith(
+                "Expected mock {0} {1} to have been called at least once{because}, but it was not called at all.",
+                subject.RequestMock.Method,
+                string.IsNullOrEmpty(subject.RequestMock.PathPattern) ? "(any path)" : subject.RequestMock.PathPattern);
+
+        return new AndConstraint<RequestMockResponseBuilderAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that this mock has been invoked exactly <paramref name="times"/> times.
+    /// </summary>
+    /// <param name="times">The exact number of times the mock is expected to have been invoked. Must be zero or greater.</param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestMockResponseBuilderAssertions> HaveBeenCalled(int times, string because = "",
+        params object[] becauseArgs)
+    {
+        if (times < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(times), times, "Expected invocation count cannot be negative.");
+        }
+
+        int count = subject.RequestMock.InvocationCount;
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(count == times)
+            .FailWith(
+                "Expected mock {0} {1} to have been called exactly {2} time(s){because}, but it was called {3} time(s).",
+                subject.RequestMock.Method,
+                string.IsNullOrEmpty(subject.RequestMock.PathPattern) ? "(any path)" : subject.RequestMock.PathPattern,
+                times,
+                count);
+
+        return new AndConstraint<RequestMockResponseBuilderAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that this mock has not been invoked.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestMockResponseBuilderAssertions> NotHaveBeenCalled(string because = "",
+        params object[] becauseArgs)
+    {
+        int count = subject.RequestMock.InvocationCount;
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(count == 0)
+            .FailWith(
+                "Expected mock {0} {1} to not have been called{because}, but it was called {2} time(s).",
+                subject.RequestMock.Method,
+                string.IsNullOrEmpty(subject.RequestMock.PathPattern) ? "(any path)" : subject.RequestMock.PathPattern,
+                count);
+
+        return new AndConstraint<RequestMockResponseBuilderAssertions>(this);
+    }
+
+    /// <inheritdoc/>
+    protected override string Identifier => "request mock";
 }
