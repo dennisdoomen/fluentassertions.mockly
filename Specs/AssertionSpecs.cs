@@ -857,4 +857,57 @@ public class AssertionSpecs
                 .WithBodyHavingProperty("id", "1");
         }
     }
+
+    public class SimulatedFailureAssertionSpecs
+    {
+        [Fact]
+        public async Task Can_assert_captured_request_is_a_simulated_failure_using_throws_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/flaky").ThrowsException<HttpRequestException>();
+            var client = mock.GetClient();
+
+            // Act
+            await client.Invoking(c => c.GetAsync("https://localhost/flaky")).Should().ThrowAsync<HttpRequestException>();
+
+            // Assert
+            var request = mock.Requests.First();
+            request.Should().BeASimulatedFailure();
+        }
+
+        [Fact]
+        public async Task Can_assert_captured_request_is_a_simulated_failure_using_times_out()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/slow").TimesOut();
+            var client = mock.GetClient();
+
+            // Act
+            await client.Invoking(c => c.GetAsync("https://localhost/slow")).Should().ThrowAsync<TaskCanceledException>();
+
+            // Assert
+            var request = mock.Requests.First();
+            request.Should().BeASimulatedFailure();
+        }
+
+        [Fact]
+        public async Task Will_throw_when_captured_request_is_not_a_simulated_failure()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            var request = mock.Requests.First();
+            var act = () => request.Should().BeASimulatedFailure();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("request should be a simulated failure, but no simulated failure was recorded");
+        }
+    }
 }

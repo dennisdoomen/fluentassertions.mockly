@@ -329,6 +329,32 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
         return new AndConstraint<CapturedRequestAssertions>(this);
     }
 
+    /// <summary>
+    /// Asserts that the captured request entry represents a simulated network failure, i.e., a mock configured
+    /// with <c>ThrowsException</c> or <c>TimesOut</c> caused a transport-level exception to be propagated to the
+    /// <see cref="System.Net.Http.HttpClient"/> caller instead of returning an HTTP response.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<CapturedRequestAssertions> BeASimulatedFailure(string because = "", params object[] becauseArgs)
+    {
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(subject.SimulatedFailure is not null)
+            .FailWith("request should be a simulated failure, but no simulated failure was recorded");
+
+        return new AndConstraint<CapturedRequestAssertions>(this);
+    }
+
     protected override string Identifier
     {
         get => "request";
