@@ -1,10 +1,11 @@
-[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
 namespace Mockly
 {
     public class CapturedRequestAssertions : FluentAssertions.Primitives.ObjectAssertions<Mockly.CapturedRequest, Mockly.CapturedRequestAssertions>
     {
         public CapturedRequestAssertions(Mockly.CapturedRequest subject) { }
         protected override string Identifier { get; }
+        public FluentAssertions.AndConstraint<Mockly.CapturedRequestAssertions> BeASimulatedFailure(string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.CapturedRequestAssertions> BeExpected(string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.CapturedRequestAssertions> BeUnexpected(string because = "", params object[] becauseArgs) { }
     }
