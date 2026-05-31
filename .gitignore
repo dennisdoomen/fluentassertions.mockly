@@ -5,6 +5,7 @@
 ## Test & build artifacts
 Artifacts/
 TestResults/
+TestResults2/
 *.nupkg
 *.snupkg
 
@@ -14,6 +15,10 @@ TestResults/
 *.suo
 *.rsuser
 _ReSharper.Caches/
+
+## Copilot agent artifacts
+.agents/
+*.csx
 
 ## OS
 .DS_Store
