@@ -1323,7 +1323,7 @@ public class AssertionSpecs
         }
 
         [Fact]
-        public async Task HaveBeenCalled_failure_message_includes_method_and_path()
+        public void HaveBeenCalled_failure_message_includes_method_and_path()
         {
             // Arrange
             var mock = new HttpMock();
