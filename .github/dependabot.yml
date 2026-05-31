@@ -11,6 +11,38 @@ updates:
           - "*"
 
   - package-ecosystem: "nuget"
+    directory: "/FluentAssertions.Mockly.v7/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "FluentAssertions"
+      - dependency-name: "Mockly"
+    groups:
+      minor-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "nuget"
+    directory: "/FluentAssertions.Mockly.v8/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "FluentAssertions"
+      - dependency-name: "Mockly"
+    groups:
+      minor-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "weekly"
