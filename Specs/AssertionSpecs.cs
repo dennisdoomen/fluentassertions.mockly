@@ -380,6 +380,25 @@ public class AssertionSpecs
             act.Should().Throw<XunitException>()
                 .WithMessage("*expected request body to match wildcard pattern*");
         }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_body_matches_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("foo"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("bar"));
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBody("baz*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request having a body that matches wildcard pattern*");
+        }
     }
 
     public class WithBodyMatchingJson
@@ -452,6 +471,44 @@ public class AssertionSpecs
             act.Should().Throw<XunitException>()
                 .WithMessage("*request body is not valid JSON*");
         }
+
+        [Fact]
+        public async Task Fails_when_json_argument_is_empty()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\": 1 }"));
+            var act = () => mock.Requests.Should().ContainRequest()
+                .WithBodyMatchingJson(string.Empty);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Cannot compare the JSON body with <null>*");
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_body_matches_json()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\": 1 }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\": 2 }"));
+
+            var act = () => mock.Requests.Should().ContainRequest()
+                .WithBodyMatchingJson("{ \"id\": 3 }");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request body to be JSON-equivalent*");
+        }
     }
 
     public class WithBodyEquivalentTo
@@ -509,6 +566,27 @@ public class AssertionSpecs
                 - Expected property actual.id to be 2, but found 1.
                 - Expected property actual.name to be "y", but "x" differs near "x" (index 0).*
                 """);
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_is_body_equivalent_to()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":1, \"name\":\"x\" }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":2, \"name\":\"y\" }"));
+
+            var expected = new { id = 3, name = "z" };
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyEquivalentTo(expected);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected the closest matching request*at have a body equivalent to the expectation*");
         }
     }
 
@@ -728,6 +806,27 @@ public class AssertionSpecs
                     ["name"] = "x"
                 });
         }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_has_expected_properties()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\" }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"2\" }"));
+
+            var expected = new Dictionary<string, string>(StringComparer.Ordinal) { ["id"] = "3" };
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(expected);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request body to have the expected properties*but none did*");
+        }
     }
 
     public class WithBodyHavingPropertiesEqualTo
@@ -794,6 +893,26 @@ public class AssertionSpecs
 
             // Assert
             act.Should().Throw<XunitException>();
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_has_equivalent_properties()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\" }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"2\" }"));
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesEqualTo(
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["id"] = "3" });
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request body to have the expected properties*but none did*");
         }
     }
 
@@ -869,7 +988,7 @@ public class AssertionSpecs
             await client.SendAsync(request);
 
             // Assert
-            mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key", "secret-*");
+            mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key", valuePattern: "secret-*");
         }
 
         [Fact]
@@ -890,8 +1009,32 @@ public class AssertionSpecs
             await client.SendAsync(req2);
 
             // Assert
-            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", "tenant-a");
-            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", "tenant-b");
+            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", valuePattern: "tenant-a");
+            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", valuePattern: "tenant-b");
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_has_header_value_matching_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var req1 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req1.Headers.Add("X-Api-Key", "old-key");
+            await client.SendAsync(req1);
+
+            var req2 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req2.Headers.Add("X-Api-Key", "other-key");
+            await client.SendAsync(req2);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key", valuePattern: "new-*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have header*X-Api-Key*matching wildcard pattern*new-**");
         }
 
         [Fact]
@@ -985,7 +1128,7 @@ public class AssertionSpecs
             await client.SendAsync(request);
 
             // Assert
-            mock.Requests.Should().ContainRequest().WithBearerToken("eyJ*");
+            mock.Requests.Should().ContainRequest().WithBearerToken(tokenPattern: "eyJ*");
         }
 
         [Fact]
@@ -1080,6 +1223,50 @@ public class AssertionSpecs
             // Assert
             act.Should().Throw<XunitException>()
                 .WithMessage("*Expected request to have a Bearer token matching*eyJ**");
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_has_bearer_token_matching_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var req1 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req1.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token-one");
+            await client.SendAsync(req1);
+
+            var req2 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req2.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token-two");
+            await client.SendAsync(req2);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken(tokenPattern: "eyJ*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have a Bearer token matching*eyJ**");
+        }
+
+        [Fact]
+        public async Task Fails_when_bearer_token_pattern_does_not_match_and_scheme_is_not_bearer()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", "dXNlcjpwYXNz");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken(tokenPattern: "eyJ*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a Bearer token matching*eyJ**Authorization: Basic*");
         }
 
         [Fact]
