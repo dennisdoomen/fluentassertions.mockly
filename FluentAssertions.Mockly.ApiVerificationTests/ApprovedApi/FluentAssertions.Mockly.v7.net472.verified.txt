@@ -40,6 +40,7 @@ namespace Mockly
         protected override string Identifier { get; }
         public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveCalledInOrder(params Mockly.RequestMockResponseBuilder[] expectedOrder) { }
+        public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveCalledInOrder(Mockly.RequestMockResponseBuilder[] expectedOrder, string because = "", params object[] becauseArgs) { }
     }
     public class RequestCollectionAssertions : FluentAssertions.Collections.GenericCollectionAssertions<Mockly.CapturedRequest>
     {
@@ -57,6 +58,7 @@ namespace Mockly
         protected override string Identifier { get; }
         public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> HaveBeenCalled(string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> HaveBeenCalled(int times, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> HaveBeenCalledTimes(int expected, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> NotHaveBeenCalled(string because = "", params object[] becauseArgs) { }
     }
 }
