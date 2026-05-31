@@ -857,4 +857,241 @@ public class AssertionSpecs
                 .WithBodyHavingProperty("id", "1");
         }
     }
+
+    public class QueryParamAssertionSpecs
+    {
+        [Fact]
+        public async Task Finds_request_having_named_query_param_with_any_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?name=Alice");
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithQueryParam("name");
+        }
+
+        [Fact]
+        public async Task Fails_when_named_query_param_is_not_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?other=value");
+            var act = () => mock.Requests.Should().ContainRequest().WithQueryParam("name");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a query parameter named*name*");
+        }
+
+        [Fact]
+        public async Task Finds_request_having_query_param_with_matching_wildcard_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?name=Alice");
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithQueryParam("name", "Al*");
+        }
+
+        [Fact]
+        public async Task Fails_when_query_param_value_does_not_match_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?name=Alice");
+            var act = () => mock.Requests.Should().ContainRequest().WithQueryParam("name", "Bob*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a query parameter*name*matching wildcard*Bob**");
+        }
+
+        [Fact]
+        public async Task Decodes_url_encoded_query_param_name_and_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?full%20name=hello%20world");
+
+            // Assert
+            mock.Requests.Should().ContainRequest()
+                .WithQueryParam("full name")
+                .And
+                .WithQueryParam("full name", "hello *");
+        }
+
+        [Fact]
+        public async Task Can_match_against_multiple_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?q=foo");
+            await client.GetAsync("https://localhost/api/test?q=bar");
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithQueryParam("q", "foo");
+            mock.Requests.Should().ContainRequest().WithQueryParam("q", "bar");
+        }
+
+        [Fact]
+        public async Task Fails_with_multi_request_message_when_none_match()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").WithAnyQuery().RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test?q=foo");
+            await client.GetAsync("https://localhost/api/test?q=bar");
+            var act = () => mock.Requests.Should().ContainRequest().WithQueryParam("q", "baz");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have a query parameter*q*matching wildcard*baz*");
+        }
+    }
+
+    public class FormFieldAssertionSpecs
+    {
+        [Fact]
+        public async Task Finds_request_having_form_field_with_matching_wildcard_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent(
+                [
+                    new KeyValuePair<string, string>("name", "Alice"),
+                    new KeyValuePair<string, string>("age", "30")
+                ]));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithFormField("name", "Al*");
+        }
+
+        [Fact]
+        public async Task Fails_when_form_field_does_not_match_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("name", "Alice")]));
+            var act = () => mock.Requests.Should().ContainRequest().WithFormField("name", "Bob*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a form field*name*matching wildcard*Bob**");
+        }
+
+        [Fact]
+        public async Task Fails_when_form_field_is_not_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("name", "Alice")]));
+            var act = () => mock.Requests.Should().ContainRequest().WithFormField("age", "30");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a form field*age*");
+        }
+
+        [Fact]
+        public async Task Decodes_url_encoded_form_field_name_and_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act — FormUrlEncodedContent encodes spaces as '+', WebUtility.UrlDecode handles both
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent(
+                [
+                    new KeyValuePair<string, string>("full name", "hello world")
+                ]));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithFormField("full name", "hello *");
+        }
+
+        [Fact]
+        public async Task Can_match_against_multiple_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "en")]));
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "nl")]));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithFormField("lang", "en");
+            mock.Requests.Should().ContainRequest().WithFormField("lang", "nl");
+        }
+
+        [Fact]
+        public async Task Fails_with_multi_request_message_when_none_match()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "en")]));
+            await client.PostAsync("https://localhost/api/test",
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "nl")]));
+            var act = () => mock.Requests.Should().ContainRequest().WithFormField("lang", "de");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have a form field*lang*matching wildcard*de*");
+        }
+    }
 }
