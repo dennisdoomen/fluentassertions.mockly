@@ -5,6 +5,7 @@
 ## Test & build artifacts
 Artifacts/
 TestResults/
+TestResults2/
 *.nupkg
 *.snupkg
 
