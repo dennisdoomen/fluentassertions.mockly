@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
@@ -751,6 +752,151 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         }
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Asserts that at least one of the matching requests received a response containing the specified header.
+    /// </summary>
+    /// <param name="name">The name of the response header to look for.</param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithResponseHeader(string name)
+    {
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Response is not null && HasResponseHeader(request.Response, name))
+            {
+                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .FailWith("Expected response to contain header {0}, but it was not found", name);
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .FailWith("Expected at least one response to contain header {0}, but none did", name);
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Asserts that at least one of the matching requests received a response with the specified header
+    /// whose value matches the given wildcard pattern.
+    /// </summary>
+    /// <param name="name">The name of the response header.</param>
+    /// <param name="value">A wildcard pattern the header value must match. Use <c>*</c> as wildcard character.</param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithResponseHeader(
+        string name, string value, string because = "", params object[] becauseArgs)
+    {
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Response is not null && HasResponseHeaderWithValue(request.Response, name, value))
+            {
+                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected response header {0} to match wildcard pattern {1}{because}, but it did not", name, value);
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected at least one response to have header {0} matching wildcard pattern {1}{because}, but none did",
+                    name, value);
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    private static bool HasResponseHeader(HttpResponseMessage response, string name)
+    {
+        try
+        {
+            if (response.Headers.Contains(name))
+            {
+                return true;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Header name belongs to a different header category (e.g., content header); check below.
+        }
+
+        try
+        {
+            return response.Content?.Headers.Contains(name) == true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static bool HasResponseHeaderWithValue(HttpResponseMessage response, string name, string valuePattern)
+    {
+        try
+        {
+            if (response.Headers.TryGetValues(name, out var headerValues))
+            {
+                return headerValues.Any(v => v.MatchesWildcard(valuePattern));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Header name belongs to a different header category (e.g., content header); check below.
+        }
+
+        try
+        {
+            if (response.Content?.Headers.TryGetValues(name, out var contentHeaderValues) == true)
+            {
+                return contentHeaderValues!.Any(v => v.MatchesWildcard(valuePattern));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Header name is not valid for either header collection.
+        }
+
+        return false;
     }
 
     protected override string Identifier

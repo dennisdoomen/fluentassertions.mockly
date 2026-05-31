@@ -857,4 +857,184 @@ public class AssertionSpecs
                 .WithBodyHavingProperty("id", "1");
         }
     }
+
+    public class ResponseHeaderAssertionSpecs
+    {
+        [Fact]
+        public async Task Passes_when_response_has_the_expected_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add("X-Custom-Header", "some-value");
+                return response;
+            });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithResponseHeader("X-Custom-Header");
+        }
+
+        [Fact]
+        public async Task Fails_when_response_does_not_have_the_expected_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithResponseHeader("X-Missing-Header");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("Expected response to contain header*X-Missing-Header*but it was not found*");
+        }
+
+        [Fact]
+        public async Task Passes_when_response_header_value_matches_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add("X-Correlation-Id", "abc-123-xyz");
+                return response;
+            });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithResponseHeader("X-Correlation-Id", "abc-*");
+        }
+
+        [Fact]
+        public async Task Fails_when_response_header_value_does_not_match_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add("X-Custom-Header", "actual-value");
+                return response;
+            });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest()
+                .WithResponseHeader("X-Custom-Header", "expected-*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("Expected response header*X-Custom-Header*to match wildcard pattern*expected-**but it did not*");
+        }
+
+        [Fact]
+        public async Task Can_match_against_multiple_requests_by_header_presence()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add("X-Custom-Header", "value");
+                return response;
+            });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert: either of the captured requests satisfies the assertion
+            mock.Requests.Should().ContainRequest().WithResponseHeader("X-Custom-Header");
+        }
+
+        [Fact]
+        public async Task Can_match_against_multiple_requests_by_header_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var callCount = 0;
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+            {
+                callCount++;
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add("X-Version", callCount == 1 ? "v1" : "v2");
+                return response;
+            });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert: each header value can be found among the captured requests
+            mock.Requests.Should().ContainRequest().WithResponseHeader("X-Version", "v1");
+            mock.Requests.Should().ContainRequest().WithResponseHeader("X-Version", "v2");
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_the_responses_have_the_expected_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithResponseHeader("X-Missing");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("Expected at least one response to contain header*X-Missing*but none did*");
+        }
+
+        [Fact]
+        public async Task Also_checks_content_headers()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test").RespondsWith(_ =>
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("hello", System.Text.Encoding.UTF8, "application/json")
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert: Content-Type is a content header, not a response header
+            mock.Requests.Should().ContainRequest().WithResponseHeader("Content-Type", "application/json*");
+        }
+    }
 }
