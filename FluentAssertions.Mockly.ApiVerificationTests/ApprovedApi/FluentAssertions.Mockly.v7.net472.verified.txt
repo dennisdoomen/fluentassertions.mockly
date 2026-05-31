@@ -24,6 +24,8 @@ namespace Mockly
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithHeader(string name, string valuePattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithQueryParam(string name) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithQueryParam(string name, string valuePattern, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithResponseHeader(string name) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithResponseHeader(string name, string value, string because = "", params object[] becauseArgs) { }
     }
     public static class HttpMockAssertionExtensions
     {
