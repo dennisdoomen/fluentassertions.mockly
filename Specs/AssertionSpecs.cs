@@ -1156,7 +1156,7 @@ public class AssertionSpecs
             mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
             var client = mock.GetClient();
 
-            // Act — first request has no token, second has a bearer token
+            // Act ΓÇö first request has no token, second has a bearer token
             await client.GetAsync("https://localhost/api/test");
 
             var req = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
@@ -1519,7 +1519,7 @@ public class AssertionSpecs
             mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
             var client = mock.GetClient();
 
-            // Act — FormUrlEncodedContent encodes spaces as '+', WebUtility.UrlDecode handles both
+            // Act ΓÇö FormUrlEncodedContent encodes spaces as '+', WebUtility.UrlDecode handles both
             await client.PostAsync("https://localhost/api/test",
                 new FormUrlEncodedContent(
                 [
@@ -1567,6 +1567,250 @@ public class AssertionSpecs
             // Assert
             act.Should().Throw<XunitException>()
                 .WithMessage("*Expected at least one request to have a form field*lang*matching wildcard*de*");
+        }
+    }
+
+    public class PerMockAssertionSpecs
+    {
+        [Fact]
+        public async Task HaveBeenCalled_passes_when_called_at_least_once()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            getMock.Should().HaveBeenCalled();
+        }
+
+        [Fact]
+        public async Task HaveBeenCalled_passes_when_called_multiple_times()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            getMock.Should().HaveBeenCalled();
+        }
+
+        [Fact]
+        public void HaveBeenCalled_fails_when_never_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var act = () => getMock.Should().HaveBeenCalled();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*GET*/api/test*to have been called at least once*");
+        }
+
+        [Fact]
+        public async Task HaveBeenCalled_with_exact_count_passes_when_count_matches()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var postMock = mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{}"));
+            await client.PostAsync("https://localhost/api/users", new StringContent("{}"));
+            await client.PostAsync("https://localhost/api/users", new StringContent("{}"));
+
+            // Assert
+            postMock.Should().HaveBeenCalled(3);
+        }
+
+        [Fact]
+        public async Task HaveBeenCalled_with_exact_count_fails_when_count_differs()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var postMock = mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{}"));
+
+            var act = () => postMock.Should().HaveBeenCalled(3);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*POST*/api/users*exactly 3 time(s)*but it was called 1 time(s)*");
+        }
+
+        [Fact]
+        public void HaveBeenCalled_with_zero_times_passes_when_not_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Assert ΓÇö 0 times is equivalent to NotHaveBeenCalled
+            getMock.Should().HaveBeenCalled(0);
+        }
+
+        [Fact]
+        public void HaveBeenCalled_throws_when_negative_count_is_given()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var act = () => getMock.Should().HaveBeenCalled(-1);
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>()
+                .WithParameterName("times");
+        }
+
+        [Fact]
+        public void NotHaveBeenCalled_passes_when_never_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Assert
+            getMock.Should().NotHaveBeenCalled();
+        }
+
+        [Fact]
+        public async Task NotHaveBeenCalled_fails_when_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => getMock.Should().NotHaveBeenCalled();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*GET*/api/test*to not have been called*but it was called 1 time(s)*");
+        }
+
+        [Fact]
+        public async Task HaveCalledInOrder_passes_when_mocks_are_called_in_expected_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/step1").RespondsWithStatus(HttpStatusCode.OK);
+            var postMock = mock.ForPost().WithPath("/api/step2").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/step1");
+            await client.PostAsync("https://localhost/api/step2", new StringContent("{}"));
+
+            // Assert
+            mock.Should().HaveCalledInOrder(getMock, postMock);
+        }
+
+        [Fact]
+        public async Task HaveCalledInOrder_fails_when_mocks_are_called_in_wrong_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/step1").RespondsWithStatus(HttpStatusCode.OK);
+            var postMock = mock.ForPost().WithPath("/api/step2").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act ΓÇö POST before GET
+            await client.PostAsync("https://localhost/api/step2", new StringContent("{}"));
+            await client.GetAsync("https://localhost/api/step1");
+
+            var act = () => mock.Should().HaveCalledInOrder(getMock, postMock);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected mocks to have been called in order*");
+        }
+
+        [Fact]
+        public async Task HaveCalledInOrder_fails_when_one_mock_was_never_called()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var getMock = mock.ForGet().WithPath("/api/step1").RespondsWithStatus(HttpStatusCode.OK);
+            var postMock = mock.ForPost().WithPath("/api/step2").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act ΓÇö only GET is called
+            await client.GetAsync("https://localhost/api/step1");
+
+            var act = () => mock.Should().HaveCalledInOrder(getMock, postMock);
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected mocks to have been called in order*mock #2*never invoked*");
+        }
+
+        [Fact]
+        public async Task HaveCalledInOrder_passes_with_three_mocks_in_correct_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var createMock = mock.ForPost().WithPath("/api/create").RespondsWithStatus(HttpStatusCode.Created);
+            var readMock = mock.ForGet().WithPath("/api/read").RespondsWithStatus(HttpStatusCode.OK);
+            var deleteMock = mock.ForDelete().WithPath("/api/delete").RespondsWithStatus(HttpStatusCode.NoContent);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/create", new StringContent("{}"));
+            await client.GetAsync("https://localhost/api/read");
+            await client.DeleteAsync("https://localhost/api/delete");
+
+            // Assert
+            mock.Should().HaveCalledInOrder(createMock, readMock, deleteMock);
+        }
+
+        [Fact]
+        public void HaveCalledInOrder_throws_when_no_mocks_provided()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Should().HaveCalledInOrder();
+
+            // Assert
+            act.Should().Throw<ArgumentException>()
+                .WithParameterName("expectedOrder");
+        }
+
+        [Fact]
+        public void HaveBeenCalled_failure_message_includes_method_and_path()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var patchMock = mock.ForPatch().WithPath("/api/resource/1").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var act = () => patchMock.Should().HaveBeenCalled();
+
+            // Assert
+            string message = act.Should().Throw<XunitException>().Which.Message;
+            message.Should().Contain("PATCH");
+            message.Should().Contain("/api/resource/1");
         }
     }
 

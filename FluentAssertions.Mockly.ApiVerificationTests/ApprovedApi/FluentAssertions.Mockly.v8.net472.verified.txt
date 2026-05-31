@@ -32,12 +32,14 @@ namespace Mockly
         public static Mockly.CapturedRequestAssertions Should(this Mockly.CapturedRequest request) { }
         public static Mockly.HttpMockAssertions Should(this Mockly.HttpMock mock) { }
         public static Mockly.RequestCollectionAssertions Should(this Mockly.RequestCollection collection) { }
+        public static Mockly.RequestMockResponseBuilderAssertions Should(this Mockly.RequestMockResponseBuilder builder) { }
     }
     public class HttpMockAssertions : FluentAssertions.Primitives.ReferenceTypeAssertions<Mockly.HttpMock, Mockly.HttpMockAssertions>
     {
         public HttpMockAssertions(Mockly.HttpMock subject) { }
         protected override string Identifier { get; }
         public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveCalledInOrder(params Mockly.RequestMockResponseBuilder[] expectedOrder) { }
     }
     public class RequestCollectionAssertions : FluentAssertions.Collections.GenericCollectionAssertions<Mockly.CapturedRequest>
     {
@@ -48,5 +50,13 @@ namespace Mockly
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainUnexpectedCalls(string because = "", params object[] becauseArgs) { }
+    }
+    public class RequestMockResponseBuilderAssertions : FluentAssertions.Primitives.ReferenceTypeAssertions<Mockly.RequestMockResponseBuilder, Mockly.RequestMockResponseBuilderAssertions>
+    {
+        public RequestMockResponseBuilderAssertions(Mockly.RequestMockResponseBuilder subject) { }
+        protected override string Identifier { get; }
+        public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> HaveBeenCalled(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> HaveBeenCalled(int times, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestMockResponseBuilderAssertions> NotHaveBeenCalled(string because = "", params object[] becauseArgs) { }
     }
 }
