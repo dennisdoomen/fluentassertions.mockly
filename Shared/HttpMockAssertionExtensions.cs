@@ -786,7 +786,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
 #endif
                 .FailWith(
                     "Expected request to have a query parameter named {0}, but the query string was: {1}",
-                    name, requests[0].Query ?? "(empty)");
+                    name, requests[0].Query);
         }
         else
         {
@@ -842,7 +842,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 .BecauseOf(because, becauseArgs)
                 .FailWith(
                     "Expected request to have a query parameter {0} matching wildcard {1}{because}, but the query string was: {2}",
-                    name, valuePattern, requests[0].Query ?? "(empty)");
+                    name, valuePattern, requests[0].Query);
         }
         else
         {
@@ -925,12 +925,12 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
 
     private static IEnumerable<(string Name, string Value)> ParseUrlEncodedPairs(string? rawQuery)
     {
-        if (string.IsNullOrEmpty(rawQuery))
+        if (rawQuery is null or { Length: 0 })
         {
             yield break;
         }
 
-        string query = rawQuery!.TrimStart('?');
+        string query = rawQuery.TrimStart('?');
 
         foreach (string pair in query.Split('&'))
         {

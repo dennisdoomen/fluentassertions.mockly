@@ -990,11 +990,11 @@ public class AssertionSpecs
 
             // Act
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[]
-                {
+                new FormUrlEncodedContent(
+                [
                     new KeyValuePair<string, string>("name", "Alice"),
                     new KeyValuePair<string, string>("age", "30")
-                }));
+                ]));
 
             // Assert
             mock.Requests.Should().ContainRequest().WithFormField("name", "Al*");
@@ -1010,7 +1010,7 @@ public class AssertionSpecs
 
             // Act
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("name", "Alice") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("name", "Alice")]));
             var act = () => mock.Requests.Should().ContainRequest().WithFormField("name", "Bob*");
 
             // Assert
@@ -1028,7 +1028,7 @@ public class AssertionSpecs
 
             // Act
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("name", "Alice") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("name", "Alice")]));
             var act = () => mock.Requests.Should().ContainRequest().WithFormField("age", "30");
 
             // Assert
@@ -1046,10 +1046,10 @@ public class AssertionSpecs
 
             // Act — FormUrlEncodedContent encodes spaces as '+', WebUtility.UrlDecode handles both
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[]
-                {
+                new FormUrlEncodedContent(
+                [
                     new KeyValuePair<string, string>("full name", "hello world")
-                }));
+                ]));
 
             // Assert
             mock.Requests.Should().ContainRequest().WithFormField("full name", "hello *");
@@ -1065,9 +1065,9 @@ public class AssertionSpecs
 
             // Act
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("lang", "en") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "en")]));
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("lang", "nl") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "nl")]));
 
             // Assert
             mock.Requests.Should().ContainRequest().WithFormField("lang", "en");
@@ -1084,9 +1084,9 @@ public class AssertionSpecs
 
             // Act
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("lang", "en") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "en")]));
             await client.PostAsync("https://localhost/api/test",
-                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("lang", "nl") }));
+                new FormUrlEncodedContent([new KeyValuePair<string, string>("lang", "nl")]));
             var act = () => mock.Requests.Should().ContainRequest().WithFormField("lang", "de");
 
             // Assert
