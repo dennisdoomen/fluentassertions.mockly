@@ -1107,30 +1107,22 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     {
         foreach (CapturedRequest request in requests)
         {
-            if (request.Response is not null && HasResponseHeader(request.Response, name))
+            if (HasResponseHeader(request.Response, name))
             {
                 return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
             }
         }
 
-        if (requests.Length == 1)
-        {
+        string message = requests.Length == 1
+            ? "Expected response to contain header {0}, but it was not found"
+            : "Expected at least one response to contain header {0}, but none did";
+
 #if FA8
-            AssertionChain.GetOrCreate()
+        AssertionChain.GetOrCreate()
 #else
-            Execute.Assertion
+        Execute.Assertion
 #endif
-                .FailWith("Expected response to contain header {0}, but it was not found", name);
-        }
-        else
-        {
-#if FA8
-            AssertionChain.GetOrCreate()
-#else
-            Execute.Assertion
-#endif
-                .FailWith("Expected at least one response to contain header {0}, but none did", name);
-        }
+            .FailWith(message, name);
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
@@ -1156,34 +1148,23 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     {
         foreach (CapturedRequest request in requests)
         {
-            if (request.Response is not null && HasResponseHeaderWithValue(request.Response, name, value))
+            if (HasResponseHeaderWithValue(request.Response, name, value))
             {
                 return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
             }
         }
 
-        if (requests.Length == 1)
-        {
+        string message = requests.Length == 1
+            ? "Expected response header {0} to match wildcard pattern {1}{because}, but it did not"
+            : "Expected at least one response to have header {0} matching wildcard pattern {1}{because}, but none did";
+
 #if FA8
-            AssertionChain.GetOrCreate()
+        AssertionChain.GetOrCreate()
 #else
-            Execute.Assertion
+        Execute.Assertion
 #endif
-                .BecauseOf(because, becauseArgs)
-                .FailWith("Expected response header {0} to match wildcard pattern {1}{because}, but it did not", name, value);
-        }
-        else
-        {
-#if FA8
-            AssertionChain.GetOrCreate()
-#else
-            Execute.Assertion
-#endif
-                .BecauseOf(because, becauseArgs)
-                .FailWith(
-                    "Expected at least one response to have header {0} matching wildcard pattern {1}{because}, but none did",
-                    name, value);
-        }
+            .BecauseOf(because, becauseArgs)
+            .FailWith(message, name, value);
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
