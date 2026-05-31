@@ -836,6 +836,272 @@ public class AssertionSpecs
         }
     }
 
+    public class WithHeader
+    {
+        [Fact]
+        public async Task Matches_when_header_is_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Add("X-Api-Key", "secret");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key");
+        }
+
+        [Fact]
+        public async Task Matches_header_with_wildcard_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Add("X-Api-Key", "secret-value-123");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key", "secret-*");
+        }
+
+        [Fact]
+        public async Task Matches_against_multiple_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var req1 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req1.Headers.Add("X-Tenant", "tenant-a");
+            await client.SendAsync(req1);
+
+            var req2 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req2.Headers.Add("X-Tenant", "tenant-b");
+            await client.SendAsync(req2);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", "tenant-a");
+            mock.Requests.Should().ContainRequest().WithHeader("X-Tenant", "tenant-b");
+        }
+
+        [Fact]
+        public async Task Fails_when_header_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have header*X-Api-Key*");
+        }
+
+        [Fact]
+        public async Task Fails_when_header_value_does_not_match_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Add("X-Api-Key", "wrong-value");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key", valuePattern: "expected-*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request header*X-Api-Key*to match wildcard pattern*expected-**");
+        }
+
+        [Fact]
+        public async Task Fails_with_header_absent_message_when_none_of_multiple_requests_has_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithHeader("X-Api-Key");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have header*X-Api-Key*");
+        }
+    }
+
+    public class WithBearerToken
+    {
+        [Fact]
+        public async Task Matches_when_bearer_token_is_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "mytoken");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBearerToken();
+        }
+
+        [Fact]
+        public async Task Matches_bearer_token_with_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "eyJtoken123");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBearerToken("eyJ*");
+        }
+
+        [Fact]
+        public async Task Matches_bearer_token_case_insensitively()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.TryAddWithoutValidation("Authorization", "bearer mytoken");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBearerToken();
+        }
+
+        [Fact]
+        public async Task Matches_against_multiple_requests_for_bearer_presence()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act — first request has no token, second has a bearer token
+            await client.GetAsync("https://localhost/api/test");
+
+            var req = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+            await client.SendAsync(req);
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBearerToken();
+        }
+
+        [Fact]
+        public async Task Fails_when_bearer_token_is_absent()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a Bearer token*no Authorization header*");
+        }
+
+        [Fact]
+        public async Task Fails_when_authorization_scheme_is_not_bearer()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", "dXNlcjpwYXNz");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a Bearer token*Authorization: Basic*");
+        }
+
+        [Fact]
+        public async Task Fails_when_bearer_token_value_does_not_match_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrongtoken");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken(tokenPattern: "eyJ*");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected request to have a Bearer token matching*eyJ**");
+        }
+
+        [Fact]
+        public async Task Fails_when_none_of_multiple_requests_has_bearer_token()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBearerToken();
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected at least one request to have a Bearer token*");
+        }
+    }
+
     public class Chaining
     {
         [Fact]
@@ -853,6 +1119,28 @@ public class AssertionSpecs
             mock.Requests.Should()
                 .ContainRequestFor("/api/test")
                 .WithBodyMatchingJson("{ \"id\": \"1\" }")
+                .And
+                .WithBodyHavingProperty("id", "1");
+        }
+
+        [Fact]
+        public async Task Works_for_chaining_header_with_body_assertions()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost/api/test");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token123");
+            request.Content = new StringContent("{ \"id\": \"1\" }");
+            await client.SendAsync(request);
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequest()
+                .WithBearerToken()
                 .And
                 .WithBodyHavingProperty("id", "1");
         }
