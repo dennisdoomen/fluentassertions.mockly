@@ -325,6 +325,85 @@ public class AssertionSpecs
             act.Should().Throw<XunitException>()
                 .WithMessage("Expected*/api/missing**among:*GET https://localhost/api/other*");
         }
+
+        [Fact]
+        public async Task Finds_request_with_method_overload()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/resource").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPut().WithPath("/api/resource").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/resource");
+            await client.PutAsync("https://localhost/api/resource", new StringContent("{}"));
+
+            // Assert — only the PUT request is asserted
+            mock.Requests.Should().ContainRequestFor(HttpMethod.Put, "/api/resource");
+        }
+
+        [Fact]
+        public async Task Fails_with_method_overload_when_no_matching_method_request_exists()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/resource").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/resource");
+
+            var act = () => mock.Requests.Should().ContainRequestFor(HttpMethod.Put, "/api/resource");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("Expected a PUT request for URL pattern \"/api/resource\"*, but none were found among:*GET https://localhost/api/resource*");
+        }
+
+        [Fact]
+        public async Task Finds_request_with_method_prefix_in_string()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/resource").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/resource", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestFor("POST /api/resource");
+        }
+
+        [Fact]
+        public async Task Method_prefix_in_string_is_case_insensitive()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/resource").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/resource", new StringContent("{}"));
+
+            // Assert — lowercase prefix should work
+            mock.Requests.Should().ContainRequestFor("post /api/resource");
+        }
+
+        [Fact]
+        public void Throws_when_url_pattern_contains_unrecognized_method_prefix()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Requests.Should().ContainRequestFor("CUSTOM /api/resource");
+
+            // Assert
+            act.Should().Throw<ArgumentException>()
+                .WithMessage("'CUSTOM' is not a recognized HTTP method*");
+        }
     }
 
     public class WithBody
@@ -1023,7 +1102,7 @@ public class AssertionSpecs
             var act = () => mock.Requests.Should().NotContainRequestFor("delete /api/res*");
 
             act.Should().Throw<XunitException>()
-                .WithMessage("Did not expect a request for URL pattern \"DELETE /api/res*\"*, but found:*DELETE https://localhost/api/resource*");
+                .WithMessage("Did not expect a DELETE request for URL pattern \"/api/res*\"*, but found:*DELETE https://localhost/api/resource*");
         }
 
         [Fact]
@@ -1041,7 +1120,21 @@ public class AssertionSpecs
             var act = () => mock.Requests.Should().NotContainRequestFor("put /api/config");
 
             act.Should().Throw<XunitException>()
-                .WithMessage("Did not expect a request for URL pattern \"PUT /api/config\"*, but found:*PUT https://localhost/api/config*");
+                .WithMessage("Did not expect a PUT request for URL pattern \"/api/config\"*, but found:*PUT https://localhost/api/config*");
+        }
+
+        [Fact]
+        public void Throws_when_url_pattern_contains_unrecognized_method_prefix()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Requests.Should().NotContainRequestFor("CUSTOM /api/resource");
+
+            // Assert
+            act.Should().Throw<ArgumentException>()
+                .WithMessage("'CUSTOM' is not a recognized HTTP method*");
         }
     }
 
