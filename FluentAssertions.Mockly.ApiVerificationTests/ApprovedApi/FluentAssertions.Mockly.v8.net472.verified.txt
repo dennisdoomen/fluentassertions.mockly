@@ -48,6 +48,7 @@ namespace Mockly
         public Mockly.ContainedRequestAssertions ContainRequest(string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Net.Http.HttpMethod method, string urlPattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainUnexpectedCalls(string because = "", params object[] becauseArgs) { }
