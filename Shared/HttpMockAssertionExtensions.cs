@@ -333,7 +333,7 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         if (subject.Count == 0)
         {
             failureMessage.AppendFormat(
-                "Expected a {0} request for URL pattern \"{1}\"{{because}}, but no requests where captured at all",
+                "Expected a {0} request for URL pattern \"{1}\"{{because}}, but no requests were captured at all",
                 method, urlPattern);
         }
         else if (matchingRequests.Length == 0)
@@ -402,7 +402,7 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         if (subject.Count == 0)
         {
             failureMessage.AppendFormat(
-                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests where captured at all", parsedUrlPattern);
+                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests were captured at all", parsedUrlPattern);
         }
         else if (matchingRequests.Length == 0)
         {
