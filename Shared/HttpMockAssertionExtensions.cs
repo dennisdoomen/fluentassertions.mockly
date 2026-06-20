@@ -306,8 +306,77 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     }
 
     /// <summary>
+    /// Asserts that the collection contains a request for the given HTTP method and URL pattern and returns assertions for that request.
+    /// </summary>
+    /// <param name="method">The HTTP method to filter on (e.g. <see cref="HttpMethod.Get"/>).</param>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public ContainedRequestAssertions ContainRequestFor(HttpMethod method, string urlPattern, string because = "",
+        params object[] becauseArgs)
+    {
+        CapturedRequest[] matchingRequests = subject
+            .Where(r => r.Uri is not null
+                && r.Method == method
+                && r.Uri.ToString().MatchesWildcard(urlPattern))
+            .ToArray();
+
+        var failureMessage = new StringBuilder();
+
+        if (subject.Count == 0)
+        {
+            failureMessage.AppendFormat(
+                "Expected a {0} request for URL pattern \"{1}\"{{because}}, but no requests were captured at all",
+                method, urlPattern);
+        }
+        else if (matchingRequests.Length == 0)
+        {
+            failureMessage.AppendFormat(
+                "Expected a {0} request for URL pattern \"{1}\"{{because}}, but none were found among:",
+                method, urlPattern);
+
+            failureMessage.AppendLine();
+            foreach (CapturedRequest request in subject)
+            {
+                failureMessage.AppendLine($" - {request}");
+            }
+        }
+        else
+        {
+            // The assertion succeeded
+        }
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(matchingRequests.Length > 0)
+            .FailWith(failureMessage.ToString());
+
+        return new ContainedRequestAssertions(matchingRequests);
+    }
+
+    /// <summary>
     /// Asserts that the collection contains a request for the given URL pattern and returns assertions for that request.
     /// </summary>
+    /// <remarks>
+    /// The <paramref name="urlPattern"/> may be prefixed with a case-insensitive HTTP method followed by a space
+    /// to restrict the assertion to a specific HTTP method (e.g. <c>"GET /api/users"</c>).
+    /// When no method prefix is present, all HTTP methods are matched.
+    /// </remarks>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character. Optionally prefix with an HTTP method
+    /// and a space to filter by method (e.g. <c>"POST /api/resource"</c>).
+    /// </param>
     /// <param name="because">
     /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
     /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
@@ -317,8 +386,15 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// </param>
     public ContainedRequestAssertions ContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs)
     {
+        HttpMethod? parsedMethod = TryParseMethodPrefix(urlPattern, out string parsedUrlPattern);
+
+        if (parsedMethod is not null)
+        {
+            return ContainRequestFor(parsedMethod, parsedUrlPattern, because, becauseArgs);
+        }
+
         CapturedRequest[] matchingRequests = subject
-            .Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern))
+            .Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(parsedUrlPattern))
             .ToArray();
 
         var failureMessage = new StringBuilder();
@@ -326,12 +402,12 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         if (subject.Count == 0)
         {
             failureMessage.AppendFormat(
-                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests where captured at all", urlPattern);
+                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests were captured at all", parsedUrlPattern);
         }
         else if (matchingRequests.Length == 0)
         {
             failureMessage.AppendFormat("Expected a request for URL pattern \"{0}\"{{because}}, but none were found among:",
-                urlPattern);
+                parsedUrlPattern);
 
             failureMessage.AppendLine();
             foreach (CapturedRequest request in subject)
@@ -366,12 +442,27 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     }
 
     /// <summary>
-    /// Asserts that the collection does not contain a request matching the given URL pattern.
+    /// Asserts that the collection does not contain a request matching the given HTTP method and URL pattern.
     /// </summary>
-    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "",
-        params object[] becauseArgs)
+    /// <param name="method">The HTTP method to filter on (e.g. <see cref="HttpMethod.Put"/>).</param>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(HttpMethod method, string urlPattern,
+        string because = "", params object[] becauseArgs)
     {
-        var matches = subject.Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern)).ToList();
+        var matches = subject
+            .Where(r => r.Uri is not null
+                && r.Method == method
+                && r.Uri.ToString().MatchesWildcard(urlPattern))
+            .ToList();
 
 #if FA8
         AssertionChain.GetOrCreate()
@@ -382,11 +473,91 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
             .ForCondition(!matches.Any())
             .FailWith(
                 matches.Any()
-                    ? $"Did not expect a request for URL pattern \"{urlPattern}\"{{because}}, but found:{Environment.NewLine}{string.Join(Environment.NewLine, matches.Select(r => $" - {r}"))}"
-                    : $"Did not expect a request for URL pattern \"{urlPattern}\"{{because}}, but none were found")
-            ;
+                    ? $"Did not expect a {method} request for URL pattern \"{urlPattern}\"{{because}}, but found:{Environment.NewLine}{string.Join(Environment.NewLine, matches.Select(r => $" - {r}"))}"
+                    : $"Did not expect a {method} request for URL pattern \"{urlPattern}\"{{because}}, but none were found");
 
         return new AndConstraint<RequestCollectionAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that the collection does not contain a request matching the given URL pattern.
+    /// </summary>
+    /// <remarks>
+    /// The <paramref name="urlPattern"/> may be prefixed with a case-insensitive HTTP method followed by a space
+    /// to restrict the assertion to a specific HTTP method (e.g. <c>"PUT /config/names"</c>).
+    /// When no method prefix is present, all HTTP methods are matched.
+    /// </remarks>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character. Optionally prefix with an HTTP method
+    /// and a space to filter by method (e.g. <c>"DELETE /api/resource"</c>).
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "",
+        params object[] becauseArgs)
+    {
+        HttpMethod? parsedMethod = TryParseMethodPrefix(urlPattern, out string parsedUrlPattern);
+
+        if (parsedMethod is not null)
+        {
+            return NotContainRequestFor(parsedMethod, parsedUrlPattern, because, becauseArgs);
+        }
+
+        var matches = subject
+            .Where(r => r.Uri is not null
+                && r.Uri.ToString().MatchesWildcard(parsedUrlPattern))
+            .ToList();
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(!matches.Any())
+            .FailWith(
+                matches.Any()
+                    ? $"Did not expect a request for URL pattern \"{parsedUrlPattern}\"{{because}}, but found:{Environment.NewLine}{string.Join(Environment.NewLine, matches.Select(r => $" - {r}"))}"
+                    : $"Did not expect a request for URL pattern \"{parsedUrlPattern}\"{{because}}, but none were found");
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
+
+    private static readonly HashSet<string> KnownHttpMethods = new(StringComparer.Ordinal)
+    {
+        "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"
+    };
+
+    private static HttpMethod? TryParseMethodPrefix(string urlPattern, out string remainingPattern)
+    {
+        int spaceIndex = urlPattern.IndexOf(" ", StringComparison.Ordinal);
+
+        if (spaceIndex > 0)
+        {
+            string candidate = urlPattern[..spaceIndex];
+            string candidateUpper = candidate.ToUpperInvariant();
+
+            if (candidateUpper.All(c => c >= 'A' && c <= 'Z'))
+            {
+                if (KnownHttpMethods.Contains(candidateUpper))
+                {
+                    remainingPattern = urlPattern[(spaceIndex + 1)..];
+                    return new HttpMethod(candidateUpper);
+                }
+
+                throw new ArgumentException(
+                    $"'{candidate}' is not a recognized HTTP method. Use one of: {string.Join(", ", KnownHttpMethods.OrderBy(m => m))}.",
+                    nameof(urlPattern));
+            }
+        }
+
+        remainingPattern = urlPattern;
+        return null;
     }
 }
 
