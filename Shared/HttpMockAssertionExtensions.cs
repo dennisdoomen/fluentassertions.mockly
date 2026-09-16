@@ -542,7 +542,7 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
             string candidate = urlPattern.Substring(0, spaceIndex);
             string candidateUpper = candidate.ToUpperInvariant();
 
-            if (candidateUpper.All(c => c >= 'A' && c <= 'Z'))
+            if (candidateUpper.All(c => c is >= 'A' and <= 'Z'))
             {
                 if (KnownHttpMethods.Contains(candidateUpper))
                 {
