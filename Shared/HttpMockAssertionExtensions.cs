@@ -1400,16 +1400,9 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             }
         }
 
-        string message;
-        if (requests.Length == 1)
-        {
-            message = "Expected request #{0} ({1}) to have a body equivalent to the expectation{because}, but it did not:";
-        }
-        else
-        {
-            message =
-                "Expected the closest matching request #{0} ({1}) at have a body equivalent to the expectation{because}, but it did not:";
-        }
+        string message = requests.Length == 1
+            ? "Expected request #{0} ({1}) to have a body equivalent to the expectation{because}, but it did not:"
+            : "Expected the closest matching request #{0} ({1}) at have a body equivalent to the expectation{because}, but it did not:";
 
 #if FA8
         AssertionChain.GetOrCreate()
