@@ -1653,7 +1653,6 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     }
 
     /// <summary>
-    /// <summary>
     /// Asserts that at least one of the matching requests has a query parameter with the specified name (any value).
     /// </summary>
     /// <remarks>
@@ -2079,35 +2078,22 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
 
     private static string? FindBodyPropertyViolation(CapturedRequest request, string propertyName)
     {
-        string? result;
-
-        if (string.IsNullOrWhiteSpace(request.Body))
-        {
-            result = $" - {request} has no body to inspect";
-        }
-        else
-        {
-            result = FindBodyPropertyViolationInJson(request, propertyName);
-        }
-
-        return result;
+        return string.IsNullOrWhiteSpace(request.Body)
+            ? $" - {request} has no body to inspect"
+            : FindBodyPropertyViolationInJson(request, propertyName);
     }
 
     private static string? FindBodyPropertyViolationInJson(CapturedRequest request, string propertyName)
     {
-        string? result = null;
-
         try
         {
             using var body = JsonDocument.Parse(request.Body!);
-            result = FindBodyPropertyViolationInJsonObject(request, propertyName, body.RootElement);
+            return FindBodyPropertyViolationInJsonObject(request, propertyName, body.RootElement);
         }
         catch (JsonException exception)
         {
-            result = $" - {request} has a body that is not valid JSON: {exception.Message}";
+            return $" - {request} has a body that is not valid JSON: {exception.Message}";
         }
-
-        return result;
     }
 
     private static string? FindBodyPropertyViolationInJsonObject(CapturedRequest request, string propertyName,
@@ -2192,7 +2178,6 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     private static string FormatValue(string? value)
     {
         return value is null ? "<null>" : $"\"{value}\"";
-    }
     }
 
     protected override string Identifier

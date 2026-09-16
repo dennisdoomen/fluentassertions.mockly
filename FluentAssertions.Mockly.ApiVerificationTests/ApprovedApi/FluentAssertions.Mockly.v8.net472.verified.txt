@@ -1,4 +1,4 @@
-﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/fluentassertions.mockly")]
 namespace Mockly
 {
     public class CapturedRequestAssertions : FluentAssertions.Primitives.ObjectAssertions<Mockly.CapturedRequest, Mockly.CapturedRequestAssertions>
@@ -26,6 +26,9 @@ namespace Mockly
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithQueryParam(string name, string valuePattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithResponseHeader(string name) { }
         public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithResponseHeader(string name, string value, string because = "", params object[] becauseArgs) { }
+        public Mockly.ContainedRequestAssertions WithoutBodyProperty(string propertyName, string because = "", params object[] becauseArgs) { }
+        public Mockly.ContainedRequestAssertions WithoutHeader(string headerName, string because = "", params object[] becauseArgs) { }
+        public Mockly.ContainedRequestAssertions WithoutQueryParam(string parameterName, string because = "", params object[] becauseArgs) { }
     }
     public static class HttpMockAssertionExtensions
     {
@@ -60,6 +63,7 @@ namespace Mockly
                 "Method",
                 "UrlPattern"})] System.ValueTuple<System.Net.Http.HttpMethod, string>[] expectedOrder, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsInOrder(string[] expectedOrder, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequest(string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Net.Http.HttpMethod method, string urlPattern, string because = "", params object[] becauseArgs) { }
