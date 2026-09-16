@@ -539,14 +539,14 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
 
         if (spaceIndex > 0)
         {
-            string candidate = urlPattern[..spaceIndex];
+            string candidate = urlPattern.Substring(0, spaceIndex);
             string candidateUpper = candidate.ToUpperInvariant();
 
-            if (candidateUpper.All(c => c >= 'A' && c <= 'Z'))
+            if (candidateUpper.All(c => c is >= 'A' and <= 'Z'))
             {
                 if (KnownHttpMethods.Contains(candidateUpper))
                 {
-                    remainingPattern = urlPattern[(spaceIndex + 1)..];
+                    remainingPattern = urlPattern.Substring(spaceIndex + 1);
                     return new HttpMethod(candidateUpper);
                 }
 
@@ -936,6 +936,32 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
             .BecauseOf(because, becauseArgs)
             .ForCondition(!subject.WasExpected)
             .FailWith("request should be unexpected, but it was expected");
+
+        return new AndConstraint<CapturedRequestAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that the captured request entry represents a simulated network failure, i.e., a mock configured
+    /// with <c>ThrowsException</c> or <c>TimesOut</c> caused a transport-level exception to be propagated to the
+    /// <see cref="System.Net.Http.HttpClient"/> caller instead of returning an HTTP response.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<CapturedRequestAssertions> BeASimulatedFailure(string because = "", params object[] becauseArgs)
+    {
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(subject.SimulatedFailure is not null)
+            .FailWith("request should be a simulated failure, but no simulated failure was recorded");
 
         return new AndConstraint<CapturedRequestAssertions>(this);
     }
@@ -1374,16 +1400,9 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             }
         }
 
-        string message;
-        if (requests.Length == 1)
-        {
-            message = "Expected request #{0} ({1}) to have a body equivalent to the expectation{because}, but it did not:";
-        }
-        else
-        {
-            message =
-                "Expected the closest matching request #{0} ({1}) at have a body equivalent to the expectation{because}, but it did not:";
-        }
+        string message = requests.Length == 1
+            ? "Expected request #{0} ({1}) to have a body equivalent to the expectation{because}, but it did not:"
+            : "Expected the closest matching request #{0} ({1}) at have a body equivalent to the expectation{because}, but it did not:";
 
 #if FA8
         AssertionChain.GetOrCreate()
@@ -1865,7 +1884,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             }
             else
             {
-                yield return (WebUtility.UrlDecode(pair[..idx]), WebUtility.UrlDecode(pair[(idx + 1)..]));
+                yield return (WebUtility.UrlDecode(pair.Substring(0, idx)), WebUtility.UrlDecode(pair.Substring(idx + 1)));
             }
         }
     }
