@@ -1516,6 +1516,346 @@ public class AssertionSpecs
         }
     }
 
+    public class ContainRequestsInOrderSpecs
+    {
+        [Fact]
+        public async Task Succeeds_when_requests_occurred_in_the_expected_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.GetAsync("https://localhost/api/second");
+
+            // Assert
+            mock.Requests.Should().ContainRequestsInOrder("/api/first", "/api/second");
+        }
+
+        [Fact]
+        public async Task Succeeds_when_using_method_prefixed_patterns()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.PostAsync("https://localhost/api/second", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestsInOrder("GET /api/first", "POST /api/second");
+        }
+
+        [Fact]
+        public async Task Succeeds_when_using_the_method_and_pattern_tuple_overload()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.PostAsync("https://localhost/api/second", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestsInOrder((HttpMethod.Get, "/api/first"), (HttpMethod.Post, "/api/second"));
+        }
+
+        [Fact]
+        public async Task Allows_unrelated_requests_in_between()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().WithPath("/api/unrelated").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.GetAsync("https://localhost/api/unrelated");
+            await client.GetAsync("https://localhost/api/second");
+
+            // Assert
+            mock.Requests.Should().ContainRequestsInOrder("/api/first", "/api/second");
+        }
+
+        [Fact]
+        public async Task Fails_when_requests_occurred_out_of_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/second");
+            await client.GetAsync("https://localhost/api/first");
+            var act = () => mock.Requests.Should().ContainRequestsInOrder("/api/first", "/api/second");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public async Task Fails_when_an_expected_request_never_occurred()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            var act = () => mock.Requests.Should().ContainRequestsInOrder("/api/first", "/api/never-called");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public void Throws_when_no_url_patterns_are_provided()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Requests.Should().ContainRequestsInOrder(Array.Empty<string>());
+
+            // Assert
+            act.Should().Throw<ArgumentException>().WithParameterName("expectedOrder");
+        }
+
+        [Fact]
+        public async Task Supports_the_overload_that_accepts_an_explicit_because_reason_for_url_patterns()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            var act = () => mock.Requests.Should().ContainRequestsInOrder(["/api/first", "/api/never-called"],
+                "we expect the order to matter");
+
+            // Assert
+            act.Should().Throw<XunitException>().WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public async Task Supports_the_overload_that_accepts_an_explicit_because_reason_for_method_and_pattern_tuples()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+
+            var act = () => mock.Requests.Should().ContainRequestsInOrder(
+                [(HttpMethod.Get, "/api/first"), (HttpMethod.Get, "/api/never-called")],
+                "we expect the order to matter");
+
+            // Assert
+            act.Should().Throw<XunitException>().WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public async Task Allows_chaining_additional_assertions()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.PostAsync("https://localhost/api/second", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequestsInOrder((HttpMethod.Get, "/api/first"), (HttpMethod.Post, "/api/second"))
+                .And.ContainRequestsFor("/api/first", Exactly.Once());
+        }
+    }
+
+    public class ContainRequestsForWithOccurrenceConstraintSpecs
+    {
+        [Fact]
+        public async Task Succeeds_when_the_exact_number_of_requests_were_made()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            mock.Requests.Should().ContainRequestsFor("/api/test", Exactly.Times(3));
+        }
+
+        [Fact]
+        public async Task Fails_when_the_number_of_requests_does_not_match()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            var act = () => mock.Requests.Should().ContainRequestsFor("/api/test", Exactly.Times(3));
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*exactly 3 times*but found 1*");
+        }
+
+        [Fact]
+        public async Task Succeeds_when_using_a_method_prefixed_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.PostAsync("https://localhost/api/test", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestsFor("GET /api/test", Exactly.Once());
+        }
+
+        [Fact]
+        public async Task Succeeds_when_using_the_explicit_method_overload()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.PostAsync("https://localhost/api/test", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestsFor(HttpMethod.Get, "/api/test", Exactly.Once());
+        }
+
+        [Fact]
+        public async Task Allows_chaining_additional_assertions_on_the_explicit_method_overload()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.PostAsync("https://localhost/api/test", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequestsFor(HttpMethod.Get, "/api/test", Exactly.Once())
+                .And.ContainRequestsFor(HttpMethod.Post, "/api/test", Exactly.Once());
+        }
+
+        [Fact]
+        public async Task Succeeds_with_at_least_constraint()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            mock.Requests.Should().ContainRequestsFor("/api/test", AtLeast.Once());
+        }
+
+        [Fact]
+        public void Throws_when_occurrence_constraint_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Requests.Should().ContainRequestsFor("/api/test", null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("occurrenceConstraint");
+        }
+    }
+
+    public class AllHaveBeenSentWithinSpecs
+    {
+        [Fact]
+        public async Task Succeeds_when_all_requests_were_sent_within_the_given_time_span()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            mock.Requests.Should().AllHaveBeenSentWithin(TimeSpan.FromMinutes(1));
+        }
+
+        [Fact]
+        public void Succeeds_for_an_empty_collection()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Assert
+            mock.Requests.Should().AllHaveBeenSentWithin(TimeSpan.FromMilliseconds(1));
+        }
+
+        [Fact]
+        public void Throws_when_time_span_is_negative()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.Requests.Should().AllHaveBeenSentWithin(TimeSpan.FromSeconds(-1));
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>()
+                .WithParameterName("timeSpan")
+                .WithMessage("*cannot be negative*");
+        }
+    }
+
     public class QueryParamAssertionSpecs
     {
         [Fact]

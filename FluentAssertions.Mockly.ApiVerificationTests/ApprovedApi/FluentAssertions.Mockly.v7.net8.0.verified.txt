@@ -45,10 +45,21 @@ namespace Mockly
     public class RequestCollectionAssertions : FluentAssertions.Collections.GenericCollectionAssertions<Mockly.CapturedRequest>
     {
         public RequestCollectionAssertions(Mockly.RequestCollection subject) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> AllHaveBeenSentWithin(System.TimeSpan timeSpan, string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequest(string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(System.Net.Http.HttpMethod method, string urlPattern, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsFor(string urlPattern, FluentAssertions.OccurrenceConstraint occurrenceConstraint, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsFor(System.Net.Http.HttpMethod method, string urlPattern, FluentAssertions.OccurrenceConstraint occurrenceConstraint, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsInOrder([System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Method",
+                "UrlPattern"})] params System.ValueTuple<System.Net.Http.HttpMethod, string>[] expectedOrder) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsInOrder(params string[] expectedOrder) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsInOrder([System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Method",
+                "UrlPattern"})] System.ValueTuple<System.Net.Http.HttpMethod, string>[] expectedOrder, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> ContainRequestsInOrder(string[] expectedOrder, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
         public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Net.Http.HttpMethod method, string urlPattern, string because = "", params object[] becauseArgs) { }

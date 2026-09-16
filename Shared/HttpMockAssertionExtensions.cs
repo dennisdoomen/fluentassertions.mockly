@@ -559,6 +559,318 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         remainingPattern = urlPattern;
         return null;
     }
+
+    /// <summary>
+    /// Asserts that requests matching the given URL patterns occurred in the specified order.
+    /// </summary>
+    /// <remarks>
+    /// The match does not require the requests to be consecutive; other requests may occur between them, as long
+    /// as each expected request occurs after the previous one. Each pattern may be prefixed with a case-insensitive
+    /// HTTP method followed by a space to restrict the match to a specific HTTP method (e.g. <c>"GET /api/users"</c>).
+    /// </remarks>
+    /// <param name="expectedOrder">
+    /// The URL patterns, in the order they are expected to appear. Each pattern may include <c>*</c> as a wildcard
+    /// character and may optionally be prefixed with an HTTP method and a space (e.g. <c>"POST /api/resource"</c>).
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsInOrder(params string[] expectedOrder)
+    {
+        return ContainRequestsInOrder(expectedOrder, string.Empty);
+    }
+
+    /// <summary>
+    /// Asserts that requests matching the given URL patterns occurred in the specified order.
+    /// </summary>
+    /// <remarks>
+    /// The match does not require the requests to be consecutive; other requests may occur between them, as long
+    /// as each expected request occurs after the previous one. Each pattern may be prefixed with a case-insensitive
+    /// HTTP method followed by a space to restrict the match to a specific HTTP method (e.g. <c>"GET /api/users"</c>).
+    /// </remarks>
+    /// <param name="expectedOrder">
+    /// The URL patterns, in the order they are expected to appear. Each pattern may include <c>*</c> as a wildcard
+    /// character and may optionally be prefixed with an HTTP method and a space (e.g. <c>"POST /api/resource"</c>).
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsInOrder(string[] expectedOrder, string because = "",
+        params object[] becauseArgs)
+    {
+        if (expectedOrder is null || expectedOrder.Length == 0)
+        {
+            throw new ArgumentException("At least one URL pattern must be provided to assert request order.", nameof(expectedOrder));
+        }
+
+        (HttpMethod? Method, string UrlPattern)[] parsedOrder = expectedOrder
+            .Select(pattern =>
+            {
+                HttpMethod? method = TryParseMethodPrefix(pattern, out string remainingPattern);
+                return (method, remainingPattern);
+            })
+            .ToArray();
+
+        return AssertContainRequestsInOrder(parsedOrder, because, becauseArgs);
+    }
+
+    /// <summary>
+    /// Asserts that requests matching the given HTTP method/URL pattern pairs occurred in the specified order.
+    /// </summary>
+    /// <remarks>
+    /// The match does not require the requests to be consecutive; other requests may occur between them, as long
+    /// as each expected request occurs after the previous one.
+    /// </remarks>
+    /// <param name="expectedOrder">
+    /// The HTTP method/URL pattern pairs, in the order they are expected to appear. Each pattern may include
+    /// <c>*</c> as a wildcard character.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsInOrder(
+        params (HttpMethod Method, string UrlPattern)[] expectedOrder)
+    {
+        return ContainRequestsInOrder(expectedOrder, string.Empty);
+    }
+
+    /// <summary>
+    /// Asserts that requests matching the given HTTP method/URL pattern pairs occurred in the specified order.
+    /// </summary>
+    /// <remarks>
+    /// The match does not require the requests to be consecutive; other requests may occur between them, as long
+    /// as each expected request occurs after the previous one.
+    /// </remarks>
+    /// <param name="expectedOrder">
+    /// The HTTP method/URL pattern pairs, in the order they are expected to appear. Each pattern may include
+    /// <c>*</c> as a wildcard character.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsInOrder(
+        (HttpMethod Method, string UrlPattern)[] expectedOrder, string because = "", params object[] becauseArgs)
+    {
+        if (expectedOrder is null || expectedOrder.Length == 0)
+        {
+            throw new ArgumentException("At least one URL pattern must be provided to assert request order.", nameof(expectedOrder));
+        }
+
+        (HttpMethod? Method, string UrlPattern)[] parsedOrder = expectedOrder
+            .Select(entry => ((HttpMethod?)entry.Method, entry.UrlPattern))
+            .ToArray();
+
+        return AssertContainRequestsInOrder(parsedOrder, because, becauseArgs);
+    }
+
+    private AndConstraint<RequestCollectionAssertions> AssertContainRequestsInOrder(
+        (HttpMethod? Method, string UrlPattern)[] expectedOrder, string because, object[] becauseArgs)
+    {
+        List<CapturedRequest> orderedRequests = subject.OrderBy(r => r.Sequence).ToList();
+
+        bool succeeded = true;
+        string? failureReason = null;
+        int searchStartIndex = 0;
+
+        for (int i = 0; i < expectedOrder.Length; i++)
+        {
+            (HttpMethod? method, string urlPattern) = expectedOrder[i];
+
+            int matchIndex = orderedRequests.FindIndex(searchStartIndex, r =>
+                r.Uri is not null
+                && (method is null || r.Method == method)
+                && r.Uri.ToString().MatchesWildcard(urlPattern));
+
+            if (matchIndex < 0)
+            {
+                succeeded = false;
+                failureReason = i == 0
+                    ? $"request #1 ({DescribeExpectedRequest(method, urlPattern)}) was not found"
+                    : $"request #{i + 1} ({DescribeExpectedRequest(method, urlPattern)}) was not found after request #{i}";
+
+                break;
+            }
+
+            searchStartIndex = matchIndex + 1;
+        }
+
+        string capturedInfo = succeeded
+            ? string.Empty
+            : "Actual captured requests:" + Environment.NewLine + DescribeCapturedRequestsForOrdering(orderedRequests);
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(succeeded)
+            .FailWith(
+                "Expected requests to have been captured in order{because}, but {0}" + Environment.NewLine + "{1}",
+                failureReason,
+                capturedInfo);
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
+
+    private static string DescribeExpectedRequest(HttpMethod? method, string urlPattern)
+        => method is null ? urlPattern : $"{method} {urlPattern}";
+
+    private static string DescribeCapturedRequestsForOrdering(IEnumerable<CapturedRequest> requests)
+    {
+        var builder = new StringBuilder();
+        foreach (CapturedRequest request in requests)
+        {
+            builder.Append("  #").Append(request.Sequence).Append(": ").AppendLine(request.ToString());
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Asserts that requests for the given URL pattern occurred a specific number of times.
+    /// </summary>
+    /// <remarks>
+    /// The <paramref name="urlPattern"/> may be prefixed with a case-insensitive HTTP method followed by a space
+    /// to restrict the assertion to a specific HTTP method (e.g. <c>"GET /api/users"</c>).
+    /// </remarks>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character. Optionally prefix with an HTTP method
+    /// and a space to filter by method (e.g. <c>"POST /api/resource"</c>).
+    /// </param>
+    /// <param name="occurrenceConstraint">
+    /// The expected number of occurrences, e.g. <see cref="Exactly"/>.<see cref="Exactly.Times(int)"/>,
+    /// <see cref="AtLeast"/>.<see cref="AtLeast.Once()"/>.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsFor(string urlPattern,
+        OccurrenceConstraint occurrenceConstraint, string because = "", params object[] becauseArgs)
+    {
+        if (occurrenceConstraint is null)
+        {
+            throw new ArgumentNullException(nameof(occurrenceConstraint));
+        }
+
+        HttpMethod? parsedMethod = TryParseMethodPrefix(urlPattern, out string parsedUrlPattern);
+
+        int actual = subject.Count(r =>
+            r.Uri is not null
+            && (parsedMethod is null || r.Method == parsedMethod)
+            && r.Uri.ToString().MatchesWildcard(parsedUrlPattern));
+
+        string message = BuildContainRequestsForMessage(parsedMethod, parsedUrlPattern);
+
+        return AssertContainRequestsFor(message, occurrenceConstraint, actual, because, becauseArgs);
+    }
+
+    /// <summary>
+    /// Asserts that requests for the given HTTP method and URL pattern occurred a specific number of times.
+    /// </summary>
+    /// <param name="method">The HTTP method to filter on (e.g. <see cref="HttpMethod.Get"/>).</param>
+    /// <param name="urlPattern">
+    /// A URL pattern that may include <c>*</c> as a wildcard character.
+    /// </param>
+    /// <param name="occurrenceConstraint">
+    /// The expected number of occurrences, e.g. <see cref="Exactly"/>.<see cref="Exactly.Times(int)"/>,
+    /// <see cref="AtLeast"/>.<see cref="AtLeast.Once()"/>.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> ContainRequestsFor(HttpMethod method, string urlPattern,
+        OccurrenceConstraint occurrenceConstraint, string because = "", params object[] becauseArgs)
+    {
+        if (occurrenceConstraint is null)
+        {
+            throw new ArgumentNullException(nameof(occurrenceConstraint));
+        }
+
+        int actual = subject.Count(r =>
+            r.Uri is not null && r.Method == method && r.Uri.ToString().MatchesWildcard(urlPattern));
+
+        string message = BuildContainRequestsForMessage(method, urlPattern);
+
+        return AssertContainRequestsFor(message, occurrenceConstraint, actual, because, becauseArgs);
+    }
+
+    private static string BuildContainRequestsForMessage(HttpMethod? method, string urlPattern)
+    {
+        string methodPrefix = method is null ? string.Empty : $"{method} ";
+
+        return $"Expected requests for {methodPrefix}URL pattern \"{urlPattern}\" {{expectedOccurrence}}{{because}}, but found {{0}}.";
+    }
+
+    private AndConstraint<RequestCollectionAssertions> AssertContainRequestsFor(string message,
+        OccurrenceConstraint occurrenceConstraint, int actual, string because, object[] becauseArgs)
+    {
+#if FA8
+        AssertionChain.GetOrCreate()
+            .ForConstraint(occurrenceConstraint, actual)
+#else
+        Execute.Assertion
+            .ForConstraint(occurrenceConstraint, actual)
+#endif
+            .BecauseOf(because, becauseArgs)
+            .FailWith(message, actual);
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
+
+    /// <summary>
+    /// Asserts that all captured requests were sent within the given time span of each other.
+    /// </summary>
+    /// <param name="timeSpan">
+    /// The maximum allowed duration between the first and the last captured request. An empty collection always
+    /// satisfies this assertion.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> AllHaveBeenSentWithin(TimeSpan timeSpan, string because = "",
+        params object[] becauseArgs)
+    {
+        if (timeSpan < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeSpan), timeSpan, "The time span cannot be negative.");
+        }
+
+        List<CapturedRequest> requests = subject.ToList();
+
+        TimeSpan actualSpan = requests.Count == 0
+            ? TimeSpan.Zero
+            : requests.Max(r => r.Timestamp) - requests.Min(r => r.Timestamp);
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(actualSpan <= timeSpan)
+            .FailWith(
+                "Expected all {0} captured requests to have been sent within {1}{because}, but the first and last request were {2} apart.",
+                requests.Count,
+                timeSpan,
+                actualSpan);
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
 }
 
 /// <summary>
