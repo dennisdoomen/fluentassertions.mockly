@@ -1636,6 +1636,61 @@ public class AssertionSpecs
             // Assert
             act.Should().Throw<ArgumentException>().WithParameterName("expectedOrder");
         }
+
+        [Fact]
+        public async Task Supports_the_overload_that_accepts_an_explicit_because_reason_for_url_patterns()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            var act = () => mock.Requests.Should().ContainRequestsInOrder(["/api/first", "/api/never-called"],
+                "we expect the order to matter");
+
+            // Assert
+            act.Should().Throw<XunitException>().WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public async Task Supports_the_overload_that_accepts_an_explicit_because_reason_for_method_and_pattern_tuples()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+
+            var act = () => mock.Requests.Should().ContainRequestsInOrder(
+                [(HttpMethod.Get, "/api/first"), (HttpMethod.Get, "/api/never-called")],
+                "we expect the order to matter");
+
+            // Assert
+            act.Should().Throw<XunitException>().WithMessage("*request #2*was not found after request #1*");
+        }
+
+        [Fact]
+        public async Task Allows_chaining_additional_assertions()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/first").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/second").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/first");
+            await client.PostAsync("https://localhost/api/second", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequestsInOrder((HttpMethod.Get, "/api/first"), (HttpMethod.Post, "/api/second"))
+                .And.ContainRequestsFor("/api/first", Exactly.Once());
+        }
     }
 
     public class ContainRequestsForWithOccurrenceConstraintSpecs
@@ -1706,6 +1761,25 @@ public class AssertionSpecs
 
             // Assert
             mock.Requests.Should().ContainRequestsFor(HttpMethod.Get, "/api/test", Exactly.Once());
+        }
+
+        [Fact]
+        public async Task Allows_chaining_additional_assertions_on_the_explicit_method_overload()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/test");
+            await client.PostAsync("https://localhost/api/test", new StringContent("{}"));
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequestsFor(HttpMethod.Get, "/api/test", Exactly.Once())
+                .And.ContainRequestsFor(HttpMethod.Post, "/api/test", Exactly.Once());
         }
 
         [Fact]

@@ -687,7 +687,7 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
             {
                 succeeded = false;
                 failureReason = i == 0
-                    ? $"request #{i + 1} ({DescribeExpectedRequest(method, urlPattern)}) was not found"
+                    ? $"request #1 ({DescribeExpectedRequest(method, urlPattern)}) was not found"
                     : $"request #{i + 1} ({DescribeExpectedRequest(method, urlPattern)}) was not found after request #{i}";
 
                 break;
