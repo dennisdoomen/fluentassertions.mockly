@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -288,6 +289,58 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
             .FailWith("Expected at least one request to have been captured{because}, but none were found");
 
         return new ContainedRequestAssertions(subject.ToArray());
+    }
+
+    /// <summary>
+    /// Asserts that the collection does not contain any captured requests.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndConstraint<RequestCollectionAssertions> NotContainRequest(string because = "", params object[] becauseArgs)
+    {
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .ForCondition(!subject.Any())
+            .FailWith(EscapePlaceholders(
+                $"Expected no requests to have been captured{FormatBecause(because, becauseArgs)}, but found:" +
+                $"{Environment.NewLine}{string.Join(Environment.NewLine, subject.Select(r => $" - {r}"))}"));
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
+
+    private static string FormatBecause(string because, object[] becauseArgs)
+    {
+        string result = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(because))
+        {
+            string formattedReason = becauseArgs.Length > 0
+                ? string.Format(CultureInfo.InvariantCulture, because, becauseArgs)
+                : because;
+
+            result = formattedReason.StartsWith("because", StringComparison.OrdinalIgnoreCase)
+                ? $" {formattedReason}"
+                : $" because {formattedReason}";
+        }
+
+        return result;
+    }
+
+    private static string EscapePlaceholders(string message)
+    {
+#if NET8_0_OR_GREATER
+        return message.Replace("{", "{{", StringComparison.Ordinal).Replace("}", "}}", StringComparison.Ordinal);
+#else
+        return message.Replace("{", "{{").Replace("}", "}}");
+#endif
     }
 
     /// <summary>
@@ -1600,6 +1653,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     }
 
     /// <summary>
+    /// <summary>
     /// Asserts that at least one of the matching requests has a query parameter with the specified name (any value).
     /// </summary>
     /// <remarks>
@@ -1841,6 +1895,127 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
+    /// <summary>
+    /// Asserts that none of the matching requests contain the specified HTTP header.
+    /// </summary>
+    /// <param name="headerName">
+    /// The name of the HTTP header to reject. Header names are matched case-insensitively.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// The same assertion chain so more assertions can be chained on the same matching requests.
+    /// </returns>
+    public ContainedRequestAssertions WithoutHeader(string headerName, string because = "", params object[] becauseArgs)
+    {
+        List<string> violations = requests
+            .Where(request => request.Headers.TryGetValues(headerName, out _))
+            .Select(request => FormatViolation(request, GetHeaderValues(request, headerName).Select(FormatValue)))
+            .ToList();
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .ForCondition(violations.Count == 0)
+            .FailWith(EscapePlaceholders(
+                $"Expected no matching request to contain header \"{headerName}\"{FormatBecause(because, becauseArgs)}, " +
+                $"but found:{Environment.NewLine}{string.Join(Environment.NewLine, violations)}"));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Asserts that none of the matching requests contain the specified query string parameter.
+    /// </summary>
+    /// <param name="parameterName">
+    /// The name of the query string parameter to reject. Parameter names are URL-decoded and matched case-sensitively.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// The same assertion chain so more assertions can be chained on the same matching requests.
+    /// </returns>
+    public ContainedRequestAssertions WithoutQueryParam(string parameterName, string because = "", params object[] becauseArgs)
+    {
+        List<string> violations = requests
+            .Select(request => new
+            {
+                Request = request,
+                Values = ParseUrlEncodedPairs(request.Query)
+                    .Where(pair => pair.Name == parameterName)
+                    .Select(pair => FormatValue(pair.Value))
+                    .ToList()
+            })
+            .Where(match => match.Values.Count > 0)
+            .Select(match => FormatViolation(match.Request, match.Values))
+            .ToList();
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .ForCondition(violations.Count == 0)
+            .FailWith(EscapePlaceholders(
+                $"Expected no matching request to contain query parameter \"{parameterName}\"{FormatBecause(because, becauseArgs)}, " +
+                $"but found:{Environment.NewLine}{string.Join(Environment.NewLine, violations)}"));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Asserts that none of the matching requests contain the specified top-level JSON body property.
+    /// </summary>
+    /// <remarks>
+    /// Each matching request must have a valid JSON object body. Missing, empty, malformed or non-object JSON bodies fail the assertion
+    /// because the property cannot be inspected.
+    /// </remarks>
+    /// <param name="propertyName">
+    /// The name of the top-level JSON property to reject. Property names are matched case-sensitively.
+    /// </param>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    /// <returns>
+    /// The same assertion chain so more assertions can be chained on the same matching requests.
+    /// </returns>
+    public ContainedRequestAssertions WithoutBodyProperty(string propertyName, string because = "", params object[] becauseArgs)
+    {
+        List<string> violations = requests
+            .Select(request => FindBodyPropertyViolation(request, propertyName))
+            .Where(violation => violation is not null)
+            .Select(violation => violation!)
+            .ToList();
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .ForCondition(violations.Count == 0)
+            .FailWith(EscapePlaceholders(
+                $"Expected no matching request to contain top-level JSON body property \"{propertyName}\"" +
+                $"{FormatBecause(because, becauseArgs)}, but found:{Environment.NewLine}{string.Join(Environment.NewLine, violations)}"));
+
+        return this;
+    }
+
     private static IEnumerable<(string Name, string Value)> ParseUrlEncodedPairs(string? rawQuery)
     {
         if (rawQuery is null or { Length: 0 })
@@ -1868,6 +2043,92 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 yield return (WebUtility.UrlDecode(pair[..idx]), WebUtility.UrlDecode(pair[(idx + 1)..]));
             }
         }
+    }
+
+    private static IEnumerable<string> GetHeaderValues(CapturedRequest request, string headerName)
+    {
+        return request.Headers.TryGetValues(headerName, out IEnumerable<string>? values) ? values : [];
+    }
+
+    private static string FormatBecause(string because, object[] becauseArgs)
+    {
+        string result = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(because))
+        {
+            string formattedReason = becauseArgs.Length > 0
+                ? string.Format(CultureInfo.InvariantCulture, because, becauseArgs)
+                : because;
+
+            result = formattedReason.StartsWith("because", StringComparison.OrdinalIgnoreCase)
+                ? $" {formattedReason}"
+                : $" because {formattedReason}";
+        }
+
+        return result;
+    }
+
+    private static string EscapePlaceholders(string message)
+    {
+#if NET8_0_OR_GREATER
+        return message.Replace("{", "{{", StringComparison.Ordinal).Replace("}", "}}", StringComparison.Ordinal);
+#else
+        return message.Replace("{", "{{").Replace("}", "}}");
+#endif
+    }
+
+    private static string? FindBodyPropertyViolation(CapturedRequest request, string propertyName)
+    {
+        string? result;
+
+        if (string.IsNullOrWhiteSpace(request.Body))
+        {
+            result = $" - {request} has no body to inspect";
+        }
+        else
+        {
+            result = FindBodyPropertyViolationInJson(request, propertyName);
+        }
+
+        return result;
+    }
+
+    private static string? FindBodyPropertyViolationInJson(CapturedRequest request, string propertyName)
+    {
+        string? result = null;
+
+        try
+        {
+            using var body = JsonDocument.Parse(request.Body!);
+            result = FindBodyPropertyViolationInJsonObject(request, propertyName, body.RootElement);
+        }
+        catch (JsonException exception)
+        {
+            result = $" - {request} has a body that is not valid JSON: {exception.Message}";
+        }
+
+        return result;
+    }
+
+    private static string? FindBodyPropertyViolationInJsonObject(CapturedRequest request, string propertyName,
+        JsonElement rootElement)
+    {
+        string? result = null;
+
+        if (rootElement.ValueKind != JsonValueKind.Object)
+        {
+            result = $" - {request} has a JSON body of type {rootElement.ValueKind}, not Object";
+        }
+        else if (rootElement.TryGetProperty(propertyName, out JsonElement property))
+        {
+            result = FormatViolation(request, [property.GetRawText()]);
+        }
+        else
+        {
+            // No violation found.
+        }
+
+        return result;
     }
 
     private static bool HasResponseHeader(HttpResponseMessage response, string name)
@@ -1921,6 +2182,17 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         }
 
         return false;
+    }
+
+    private static string FormatViolation(CapturedRequest request, IEnumerable<string> values)
+    {
+        return $" - {request} with value(s): {string.Join(", ", values)}";
+    }
+
+    private static string FormatValue(string? value)
+    {
+        return value is null ? "<null>" : $"\"{value}\"";
+    }
     }
 
     protected override string Identifier

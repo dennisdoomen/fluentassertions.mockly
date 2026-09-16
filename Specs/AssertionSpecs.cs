@@ -1472,6 +1472,306 @@ public class AssertionSpecs
         }
     }
 
+    public class NotContainRequest
+    {
+        [Fact]
+        public void Succeeds_when_no_requests_are_captured()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act / Assert
+            mock.Requests.Should().NotContainRequest();
+        }
+
+        [Fact]
+        public async Task Fails_when_any_request_is_captured()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users");
+
+            var act = () => mock.Requests.Should().NotContainRequest("the test should not call {0}", "/api/users");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected no requests to have been captured because the test should not call /api/users, but found:*" +
+                    "GET https://localhost/api/users*");
+        }
+    }
+
+    public class WithoutHeader
+    {
+        [Fact]
+        public async Task Succeeds_when_matching_requests_do_not_have_the_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users");
+
+            // Assert
+            mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutHeader("X-Internal-Token");
+        }
+
+        [Fact]
+        public async Task Fails_when_any_matching_request_has_the_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users");
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/users");
+            request.Headers.Add("X-Internal-Token", "secret");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutHeader("X-Internal-Token", "secrets must stay out of captured requests");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected no matching request to contain header \"X-Internal-Token\" " +
+                    "because secrets must stay out of captured requests, but found:*GET https://localhost/api/users*" +
+                    "value(s): \"secret\"*");
+        }
+
+        [Fact]
+        public async Task Matches_header_names_case_insensitively()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/users");
+            request.Headers.Add("x-internal-token", "secret");
+            await client.SendAsync(request);
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutHeader("X-Internal-Token");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*header \"X-Internal-Token\"*value(s): \"secret\"*");
+        }
+    }
+
+    public class WithoutQueryParam
+    {
+        [Fact]
+        public async Task Succeeds_when_matching_requests_do_not_have_the_query_parameter()
+        {
+            // Arrange
+            var mock = new HttpMock
+            {
+                FailOnUnexpectedCalls = false
+            };
+
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users?Debug=true");
+
+            // Assert
+            mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutQueryParam("debug");
+        }
+
+        [Fact]
+        public async Task Fails_when_any_matching_request_has_the_query_parameter()
+        {
+            // Arrange
+            var mock = new HttpMock
+            {
+                FailOnUnexpectedCalls = false
+            };
+
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users");
+            await client.GetAsync("https://localhost/api/users?debug=true&debug");
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutQueryParam("debug");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected no matching request to contain query parameter \"debug\", but found:*" +
+                    "GET https://localhost/api/users?debug=true&debug*value(s): \"true\", \"\"*");
+        }
+
+        [Fact]
+        public async Task Matches_decoded_query_names_case_sensitively()
+        {
+            // Arrange
+            var mock = new HttpMock
+            {
+                FailOnUnexpectedCalls = false
+            };
+
+            mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/users?de%62ug=true");
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutQueryParam("debug");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*query parameter \"debug\"*value(s): \"true\"*");
+        }
+    }
+
+    public class WithoutBodyProperty
+    {
+        [Fact]
+        public async Task Succeeds_when_matching_requests_do_not_have_the_body_property()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{ \"name\":\"Jane\" }"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+        }
+
+        [Fact]
+        public async Task Fails_when_any_matching_request_has_the_body_property()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{ \"name\":\"Jane\" }"));
+            await client.PostAsync("https://localhost/api/users", new StringContent("{ \"password\":\"secret\" }"));
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*Expected no matching request to contain top-level JSON body property \"password\", but found:*" +
+                    "POST https://localhost/api/users*value(s): \"secret\"*");
+        }
+
+        [Fact]
+        public async Task Matches_body_property_names_case_sensitively()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{ \"Password\":\"secret\" }"));
+
+            // Assert
+            mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+        }
+
+        [Fact]
+        public async Task Fails_when_body_property_is_present_with_null_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("{ \"password\":null }"));
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*body property \"password\"*value(s): null*");
+        }
+
+        [Fact]
+        public async Task Fails_when_body_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", null);
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*body property \"password\"*POST https://localhost/api/users has no body to inspect*");
+        }
+
+        [Fact]
+        public async Task Fails_when_body_is_malformed_json()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("not-json"));
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*body property \"password\"*POST https://localhost/api/users has a body that is not valid JSON*");
+        }
+
+        [Fact]
+        public async Task Fails_when_body_is_json_but_not_an_object()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users", new StringContent("[1,2]"));
+
+            var act = () => mock.Requests.Should().ContainRequestFor("/api/users")
+                .WithoutBodyProperty("password");
+
+            // Assert
+            act.Should().Throw<XunitException>()
+                .WithMessage("*body property \"password\"*POST https://localhost/api/users has a JSON body of type Array, not Object*");
+        }
+    }
+
     public class Chaining
     {
         [Fact]
@@ -1513,6 +1813,29 @@ public class AssertionSpecs
                 .WithBearerToken()
                 .And
                 .WithBodyHavingProperty("id", "1");
+        }
+
+        [Fact]
+        public async Task Works_for_negative_contained_request_assertions()
+        {
+            // Arrange
+            var mock = new HttpMock
+            {
+                FailOnUnexpectedCalls = false
+            };
+
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users?includeDetails=true", new StringContent("{ \"name\":\"Jane\" }"));
+
+            // Assert
+            mock.Requests.Should()
+                .ContainRequestFor("/api/users")
+                .WithoutHeader("X-Internal-Token")
+                .WithoutQueryParam("debug")
+                .WithoutBodyProperty("password");
         }
     }
 

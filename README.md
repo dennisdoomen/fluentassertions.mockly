@@ -71,6 +71,25 @@ response.StatusCode.Should().Be(HttpStatusCode.OK);
 mock.Should().HaveAllRequestsCalled();
 ```
 
+You can also assert that matching captured requests did not include sensitive data:
+
+```csharp
+requests.Should().ContainRequestFor("/api/users")
+    .WithoutHeader("X-Internal-Token")
+    .WithoutQueryParam("debug")
+    .WithoutBodyProperty("password");
+
+requests.Should().NotContainRequest();
+```
+
+The `Without...` assertions apply to every captured request matched by `ContainRequestFor`. One clean request does not hide
+another request that still contains the rejected header, query parameter or body property.
+
+Header names are matched case-insensitively, like HTTP headers. Query parameter names are URL-decoded and matched
+case-sensitively. Repeated and valueless query parameters still count as present. `WithoutBodyProperty` checks top-level
+properties of a JSON object body only. The property name is case-sensitive, and a property with a `null` value still counts
+as present. Missing, empty, malformed or non-object JSON bodies fail the assertion because the property cannot be inspected.
+
 ## Building
 
 ```bash
