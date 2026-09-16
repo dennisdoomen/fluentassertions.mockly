@@ -539,14 +539,14 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
 
         if (spaceIndex > 0)
         {
-            string candidate = urlPattern[..spaceIndex];
+            string candidate = urlPattern.Substring(0, spaceIndex);
             string candidateUpper = candidate.ToUpperInvariant();
 
             if (candidateUpper.All(c => c >= 'A' && c <= 'Z'))
             {
                 if (KnownHttpMethods.Contains(candidateUpper))
                 {
-                    remainingPattern = urlPattern[(spaceIndex + 1)..];
+                    remainingPattern = urlPattern.Substring(spaceIndex + 1);
                     return new HttpMethod(candidateUpper);
                 }
 
@@ -1891,7 +1891,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             }
             else
             {
-                yield return (WebUtility.UrlDecode(pair[..idx]), WebUtility.UrlDecode(pair[(idx + 1)..]));
+                yield return (WebUtility.UrlDecode(pair.Substring(0, idx)), WebUtility.UrlDecode(pair.Substring(idx + 1)));
             }
         }
     }
